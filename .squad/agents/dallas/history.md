@@ -95,3 +95,7 @@ Added a responsive signup page with email, password, and company name fields, a 
 - Responsive TailwindCSS layout and tests added.
 
 Date: 2026-03-28
+
+### 2026-03-28 — Implemented US-021 Frontend
+
+Added Checkout and Subscription management pages, Stripe card element component, Stripe wrapper hook, and API adjustments to support server-side payment confirmation. Implemented client-side billing toggle and responsive TailwindCSS layouts; added tests for checkout billing toggle. Learned to prefer backend-created client_secret for payment confirmation and to mock Stripe in unit tests.

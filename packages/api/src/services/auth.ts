@@ -49,17 +49,18 @@ export function generateAccessToken(user: User): string {
   );
 }
 
-export function generateRefreshToken(user: User): string {
+export function generateRefreshToken(user: User, sessionId: string, expiresIn?: string): string {
+  const expires = expiresIn || config.jwt.refreshExpiresIn;
   return jwt.sign(
-    { id: user.id },
+    { id: user.id, sid: sessionId },
     config.jwt.refreshSecret,
-    { expiresIn: config.jwt.refreshExpiresIn }
+    { expiresIn: expires }
   );
 }
 
-export function verifyRefreshToken(token: string): { id: string } {
+export function verifyRefreshToken(token: string): { id: string; sid?: string } {
   try {
-    return jwt.verify(token, config.jwt.refreshSecret) as { id: string };
+    return jwt.verify(token, config.jwt.refreshSecret) as { id: string; sid?: string };
   } catch {
     throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
   }

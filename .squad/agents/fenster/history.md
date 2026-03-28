@@ -50,3 +50,12 @@ This is a subscription-based SaaS with aesthetic UI. Focus on payment reliabilit
 - Stripe integration is reviewable (separate service layer)
 - Secrets NOT committed (.env.example only)
 - Database migrations reversible (Sequelize supports rollback)
+
+### Implemented: Plans model & public API (US-010)
+**Date:** 2026-03-28
+
+- Added Sequelize Plan model (name, tier, price_monthly, price_annual, max_members, features JSON).
+- Created migration and idempotent seeder that upserts Free, Pro, Enterprise plans.
+- Implemented public endpoints: GET /api/plans and GET /api/plans/:id which return pricing plus annual_discount_percent: 20.
+- Tests mock the model and verify endpoints return expected payload shape.
+

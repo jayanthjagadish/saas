@@ -4,6 +4,7 @@ import { config } from './config/index.js';
 import { initializeDatabase } from './config/database.js';
 import requestLoggingMiddleware from './middleware/requestLogger.js';
 import errorHandler from './middleware/errorHandler.js';
+import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import subscriptionRoutes from './routes/subscriptions.js';
@@ -21,6 +22,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(cookieParser());
 app.use(requestLoggingMiddleware);
 
 // Routes
@@ -29,6 +31,7 @@ app.use('/users', userRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/webhooks', webhookRoutes);
+app.use('/api/plans', plansRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

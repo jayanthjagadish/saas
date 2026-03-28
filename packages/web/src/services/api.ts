@@ -140,8 +140,9 @@ class ApiService {
     return response.data;
   }
 
-  async createSubscription(planId: string): Promise<ApiResponse<Subscription>> {
-    const response = await this.client.post<ApiResponse<Subscription>>('/subscriptions', { planId });
+  // Create a subscription with payment method (backend returns client_secret for payment confirmation)
+  async createSubscription(plan_id: string, payment_method_id: string): Promise<ApiResponse<any>> {
+    const response = await this.client.post<ApiResponse<any>>('/subscriptions', { plan_id, payment_method_id });
     return response.data;
   }
 

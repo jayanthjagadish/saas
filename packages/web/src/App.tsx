@@ -8,6 +8,8 @@ import SignupPage from './pages/SignupPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import DashboardPage from './pages/dashboard';
 import PricingPage from './pages/PricingPage';
+import CheckoutPage from './pages/CheckoutPage';
+import SubscriptionPage from './pages/SubscriptionPage';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -31,7 +33,9 @@ function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify" element={<VerifyEmailPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard/subscription" element={<SubscriptionPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
           </Routes>
         </Layout>
       </Router>
