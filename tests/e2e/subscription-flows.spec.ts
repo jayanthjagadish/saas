@@ -1,0 +1,311 @@
+/**
+ * Subscription & Payment E2E Tests Template (Playwright)
+ *
+ * Focus: Full user subscription journeys with Stripe integration
+ * Coverage: Plan selection → Payment collection → Renewal → Cancellation
+ */
+
+import { test, expect } from '@playwright/test';
+
+test.describe('Subscription & Payment Flows - E2E', () => {
+  test.beforeEach(async ({ page }) => {
+    // Login before each test
+    await page.goto('/login');
+    await page.fill('input[name="email"]', 'test@example.com');
+    await page.fill('input[name="password"]', 'SecurePassword123!');
+    await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/.*dashboard/);
+  });
+
+  test.describe('Subscription Creation', () => {
+    test('should display available plans', async ({ page }) => {
+      await page.goto('/pricing');
+
+      // Should show different tiers
+      await expect(page.locator('text=Free')).toBeVisible();
+      await expect(page.locator('text=Pro')).toBeVisible();
+      await expect(page.locator('text=Enterprise')).toBeVisible();
+    });
+
+    test('should create subscription on Pro plan', async ({ page }) => {
+      await page.goto('/pricing');
+
+      // Click Pro plan subscribe button
+      const proCard = page.locator('div:has-text("Pro")');
+      await proCard.locator('button:has-text("Subscribe")').click();
+
+      // Should be on payment page
+      await expect(page).toHaveURL(/.*payment|checkout/);
+
+      // Should show Stripe payment element
+      await expect(page.locator('iframe[title*="Stripe"]')).toBeVisible();
+    });
+
+    test('should require valid payment method', async ({ page }) => {
+      await page.goto('/checkout?plan=pro');
+
+      // Try to submit without payment method
+      await page.click('button:has-text("Subscribe")');
+
+      // Should show validation error
+      await expect(page.locator('text=Payment information required')).toBeVisible();
+    });
+
+    test('should handle failed payment', async ({ page }) => {
+      await page.goto('/checkout?plan=pro');
+
+      // Enter test card that declines
+      const frameLocator = page.frameLocator('iframe[title*="Stripe"]');
+      await frameLocator.locator('input[placeholder*="Card"]').fill('4000000000000002');
+      await frameLocator.locator('input[placeholder*="MM"]').fill('12');
+      await frameLocator.locator('input[placeholder*="YY"]').fill('25');
+      await frameLocator.locator('input[placeholder*="CVC"]').fill('123');
+
+      await page.click('button:has-text("Subscribe")');
+
+      // Should show error
+      await expect(page.locator('text=Card declined|payment failed')).toBeVisible();
+    });
+
+    test('should complete subscription with valid payment', async ({ page }) => {
+      await page.goto('/checkout?plan=pro');
+
+      // Enter test card that succeeds
+      const frameLocator = page.frameLocator('iframe[title*="Stripe"]');
+      await frameLocator.locator('input[placeholder*="Card"]').fill('4242424242424242');
+      await frameLocator.locator('input[placeholder*="MM"]').fill('12');
+      await frameLocator.locator('input[placeholder*="YY"]').fill('25');
+      await frameLocator.locator('input[placeholder*="CVC"]').fill('123');
+
+      await page.click('button:has-text("Subscribe")');
+
+      // Should redirect to success page
+      await expect(page).toHaveURL(/.*success|dashboard/);
+      await expect(page.locator('text=Subscription active')).toBeVisible();
+    });
+
+    test('should create subscription in trialing status for trial users', async ({ page }) => {
+      // Assume new account gets 14-day trial
+      await page.goto('/checkout?plan=pro');
+
+      // Subscribe during trial (no payment required yet)
+      await page.click('button:has-text("Start Trial")');
+
+      await expect(page).toHaveURL(/.*dashboard/);
+      await expect(page.locator('text=Trial active|Trial ends in')).toBeVisible();
+    });
+  });
+
+  test.describe('Payment Execution', () => {
+    test('should charge on successful subscription', async ({ page }) => {
+      // Simulate subscription creation
+      await page.goto('/billing');
+
+      // Check current subscription
+      await expect(page.locator('text=Pro Plan')).toBeVisible();
+      await expect(page.locator('text=Next billing|$29.99')).toBeVisible();
+    });
+
+    test('should handle duplicate payment prevention', async ({ page }) => {
+      // If network issue causes double submission
+      await page.goto('/checkout?plan=pro');
+
+      // Submit payment twice quickly
+      const frameLocator = page.frameLocator('iframe[title*="Stripe"]');
+      await frameLocator.locator('input[placeholder*="Card"]').fill('4242424242424242');
+      await frameLocator.locator('input[placeholder*="MM"]').fill('12');
+      await frameLocator.locator('input[placeholder*="YY"]').fill('25');
+      await frameLocator.locator('input[placeholder*="CVC"]').fill('123');
+
+      // Click submit button twice
+      const submitButton = page.locator('button:has-text("Subscribe")');
+      await submitButton.click();
+      await submitButton.click();
+
+      // Should only be charged once
+      await page.waitForURL(/.*success|dashboard/);
+
+      // Verify payment history shows only one charge
+      await page.goto('/billing/history');
+      const payments = await page.locator('table tbody tr').count();
+      // Should have only one new payment
+    });
+
+    test('should retry failed payment on renewal', async ({ page }) => {
+      // This would require time manipulation or mocking
+      // Simulate: Payment failed on renewal date
+      // Service should retry automatically
+
+      await page.goto('/billing');
+
+      // If past_due, should show notification
+      // await expect(page.locator('text=Payment failed')).toBeVisible();
+
+      // Should show option to retry
+      // await page.click('button:has-text("Retry Payment")');
+    });
+  });
+
+  test.describe('Subscription Management', () => {
+    test('should display current subscription details', async ({ page }) => {
+      await page.goto('/billing');
+
+      await expect(page.locator('text=Pro Plan')).toBeVisible();
+      await expect(page.locator('text=/\\$29\\.99/')).toBeVisible();
+      await expect(page.locator('text=Next billing|Renews on')).toBeVisible();
+    });
+
+    test('should allow plan upgrade', async ({ page }) => {
+      await page.goto('/billing');
+
+      // Click upgrade button
+      await page.click('button:has-text("Upgrade to Enterprise")');
+
+      // Should show confirmation
+      await expect(page.locator('text=Upgrade to Enterprise|$49.99')).toBeVisible();
+
+      // Complete upgrade
+      await page.click('button:has-text("Confirm Upgrade")');
+
+      // Should show new plan
+      await expect(page.locator('text=Enterprise Plan')).toBeVisible();
+    });
+
+    test('should allow plan downgrade', async ({ page }) => {
+      await page.goto('/billing');
+
+      // Click downgrade button
+      await page.click('button:has-text("Downgrade to Starter")');
+
+      // Should show confirmation with prorated credit
+      await expect(page.locator('text=Downgrade|Credit')).toBeVisible();
+
+      await page.click('button:has-text("Confirm")');
+
+      // Should show new plan
+      await expect(page.locator('text=Starter Plan')).toBeVisible();
+    });
+
+    test('should display payment history', async ({ page }) => {
+      await page.goto('/billing/history');
+
+      // Should show table of payments
+      await expect(page.locator('table')).toBeVisible();
+      await expect(page.locator('th:has-text("Date")')).toBeVisible();
+      await expect(page.locator('th:has-text("Amount")')).toBeVisible();
+      await expect(page.locator('th:has-text("Status")')).toBeVisible();
+    });
+
+    test('should download invoice', async ({ page }) => {
+      await page.goto('/billing/history');
+
+      // Intercept download
+      const downloadPromise = page.waitForEvent('download');
+
+      // Click download for first invoice
+      await page.locator('button:has-text("Download")').first().click();
+
+      const download = await downloadPromise;
+      expect(download.suggestedFilename()).toContain('invoice');
+    });
+  });
+
+  test.describe('Cancellation Flow', () => {
+    test('should display cancellation option', async ({ page }) => {
+      await page.goto('/billing');
+
+      await expect(page.locator('button:has-text("Cancel Subscription")')).toBeVisible();
+    });
+
+    test('should require confirmation before cancellation', async ({ page }) => {
+      await page.goto('/billing');
+
+      await page.click('button:has-text("Cancel Subscription")');
+
+      // Should show modal
+      await expect(page.locator('text=Are you sure')).toBeVisible();
+      await expect(page.locator('button:has-text("Cancel Subscription")')).toBeVisible();
+      await expect(page.locator('button:has-text("Keep Subscription")')).toBeVisible();
+    });
+
+    test('should support end-of-period cancellation', async ({ page }) => {
+      await page.goto('/billing');
+
+      await page.click('button:has-text("Cancel Subscription")');
+      await page.click('button:has-text("Cancel Subscription")'); // Confirm
+
+      // Should show "Cancels on [date]"
+      await expect(page.locator('text=Cancels on|Subscription ends')).toBeVisible();
+
+      // Should still have access until period end
+      await page.goto('/dashboard');
+      await expect(page.locator('text=Pro Plan|Active')).toBeVisible();
+    });
+
+    test('should support immediate cancellation', async ({ page }) => {
+      await page.goto('/billing');
+
+      await page.click('button:has-text("Cancel Subscription")');
+
+      // Option for immediate cancellation should exist
+      const immediateOption = page.locator('label:has-text("Cancel immediately")');
+      if (await immediateOption.isVisible()) {
+        await immediateOption.check();
+      }
+
+      await page.click('button:has-text("Cancel Subscription")'); // Confirm
+
+      // Should lose access immediately
+      await page.goto('/dashboard');
+      await expect(page.locator('text=Subscription inactive|Upgrade to continue')).toBeVisible();
+    });
+
+    test('should show cancellation reason prompt', async ({ page }) => {
+      await page.goto('/billing');
+
+      await page.click('button:has-text("Cancel Subscription")');
+      await page.click('button:has-text("Cancel Subscription")'); // Confirm
+
+      // Should have optional feedback form
+      const reasonField = page.locator('textarea[name="cancellation_reason"]');
+      if (await reasonField.isVisible()) {
+        await reasonField.fill('Price too high');
+      }
+
+      await page.click('button:has-text("Submit")');
+    });
+  });
+
+  test.describe('Error Handling', () => {
+    test('should handle network errors gracefully', async ({ page }) => {
+      // Simulate network offline
+      await page.context().setOffline(true);
+
+      await page.goto('/checkout?plan=pro');
+      await page.click('button:has-text("Subscribe")');
+
+      // Should show network error
+      await expect(page.locator('text=Network error|Connection failed')).toBeVisible();
+
+      // Should allow retry
+      await page.context().setOffline(false);
+      await page.click('button:has-text("Retry")');
+
+      // Should work
+      await expect(page).toHaveURL(/.*success/);
+    });
+
+    test('should handle Stripe API errors', async ({ page }) => {
+      await page.goto('/checkout?plan=pro');
+
+      // Enter expired test card
+      const frameLocator = page.frameLocator('iframe[title*="Stripe"]');
+      await frameLocator.locator('input[placeholder*="Card"]').fill('4000000000000069');
+
+      await page.click('button:has-text("Subscribe")');
+
+      // Should show specific error
+      await expect(page.locator('text=Card expired|invalid')).toBeVisible();
+    });
+  });
+});

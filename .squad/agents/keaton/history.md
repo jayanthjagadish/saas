@@ -11,4 +11,24 @@ This is a subscription-based SaaS with aesthetic UI. Focus on payment reliabilit
 
 ## Learnings
 
-(to be populated as Keaton works)
+### Architecture Phase (2024-01)
+- **Monorepo structure chosen:** npm workspaces keep frontend, backend, shared types cohesive. Reduces breaking changes; enables single test suite.
+- **Key file path:** `.squad/decisions/inbox/keaton-architecture.md` (source of truth for tech decisions)
+- **Database design:** Stripe is source of truth for subscription state. Local DB reflects Stripe state via webhooks; never override Stripe.
+- **JWT strategy:** 15min access token + 30day refresh token (httpOnly cookie). Stateless auth, secure against XSS.
+- **Payment safety:** All Stripe webhook events verified with SDK before processing. Audit logs for all subscription/payment changes (compliance + debugging).
+- **API contracts:** Shared types in `packages/shared/` prevent frontend/backend misalignment on auth, subscription, payment data.
+- **High-stakes decisions requiring team review:**
+  - Trial period duration (7 vs 30 days) — affects Subscription schema
+  - Cancellation timing (immediate vs end-of-period)
+  - Plan pricing source (hard-coded vs Stripe API)
+  - Payment failure email cadence
+- **Testing strategy:** Hockney focuses on Stripe webhook flows (payment_succeeded, payment_failed, subscription.updated/deleted). Use Stripe test cards.
+- **Dev team focus:** Dallas (React + TypeScript UI), Fenster (Express + TypeScript API + Stripe), Hockney (E2E + Stripe webhook verification).
+
+### Key Paths
+- Architecture doc: `.squad/decisions/inbox/keaton-architecture.md`
+- Decisions board: `.squad/decisions.md`
+- Frontend: `packages/web/` (Dallas)
+- Backend: `packages/api/` (Fenster)
+- Shared contracts: `packages/shared/src/types/`
