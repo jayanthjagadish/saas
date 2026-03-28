@@ -1,0 +1,13 @@
+{
+  "universes": [
+    "oceans-eleven",
+    "heat",
+    "godfather",
+    "goodfellas",
+    "usual-suspects",
+    "inside-man"
+  ],
+  "defaultUniverse": "oceans-eleven",
+  "maxAgentsPerUniverse": 6,
+  "overflow": "thematic-promotion"
+}

@@ -1,0 +1,28 @@
+# Squad Team
+
+> lession3
+
+## Coordinator
+
+| Name | Role | Notes |
+|------|------|-------|
+| Squad | Coordinator | Routes work, enforces handoffs and reviewer gates. |
+
+## Members
+
+| Name | Role | Charter | Status |
+|------|------|---------|--------|
+| Keaton | Lead | `.squad/agents/keaton/charter.md` | active |
+| Dallas | Frontend Dev | `.squad/agents/dallas/charter.md` | active |
+| Fenster | Backend Dev | `.squad/agents/fenster/charter.md` | active |
+| Hockney | Tester | `.squad/agents/hockney/charter.md` | active |
+| Ralph | Work Monitor | — | active |
+| Scribe | Session Logger | `.squad/agents/scribe/charter.md` | active |
+
+## Project Context
+
+- **Project:** lession3
+- **User:** jayanth.jagadish
+- **Created:** 2026-03-28
+- **Stack:** TypeScript, React (frontend), Express (backend), MySQL (database), Stripe (payments)
+- **Scope:** Subscription-based SaaS with aesthetic UI
