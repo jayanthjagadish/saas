@@ -1,0 +1,3 @@
+To: jayanthmca@gmail.com
+
+Confirm your signup at http://localhost:3000/verify?token=c0b815f5786c67965453f6a652bde94faab289c2880d449612390a9db62be50f. Link expires in 24 hours.

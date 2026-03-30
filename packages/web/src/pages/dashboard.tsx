@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiService from '../services/api';
 import type { User, DashboardData } from '../types/api';
@@ -84,6 +84,8 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [reactivateError, setReactivateError] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -135,6 +137,17 @@ export default function DashboardPage() {
     }
   };
 
+  const handleResendVerification = async () => {
+    setVerificationError(null);
+    try {
+      await apiService.resendVerification();
+      setVerificationSent(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send verification email';
+      setVerificationError(message);
+    }
+  };
+
   if (userLoading || subscriptionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -169,29 +182,42 @@ export default function DashboardPage() {
         {dashboardData && <DashboardOverviewCard data={dashboardData} />}
 
         {/* ── Quick Actions ─────────────────────────────────────────── */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">Quick Actions</h2>
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => navigate('/pricing')}
-              disabled={subscriptionData?.plan?.tier === 'enterprise'}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            <Link
+              to="/team"
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
-              ↑ Upgrade Plan
-            </button>
-            <button
-              onClick={() => navigate('/team')}
-              className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-200"
+              Invite Team Member →
+            </Link>
+            <Link
+              to="/subscription"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
-              + Invite Member
-            </button>
-            <button
-              onClick={() => navigate('/subscription')}
-              className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-200"
+              Manage Subscription →
+            </Link>
+            <Link
+              to="/analytics"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
             >
-              💳 Manage Billing
-            </button>
+              View Analytics →
+            </Link>
+            {dashboardData?.user?.emailVerified === false && !verificationSent && (
+              <button
+                onClick={handleResendVerification}
+                className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 transition-colors"
+              >
+                Resend Verification Email
+              </button>
+            )}
           </div>
+          {verificationSent && (
+            <p className="mt-3 text-sm text-green-600 font-medium">✓ Verification email sent! Please check your inbox.</p>
+          )}
+          {verificationError && (
+            <p className="mt-3 text-sm text-red-600">{verificationError}</p>
+          )}
         </div>
 
         {/* Past-Due Payment Warning Banner */}

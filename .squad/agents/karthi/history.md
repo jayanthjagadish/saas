@@ -569,3 +569,21 @@ ext() otherwise
 ## Learnings
 - For middleware that checks seat limits, the approach differs between invite creation (check caller's team) and invite acceptance (check the team being joined). A single middleware doesn't cleanly cover both cases; inline check at accept time is the right pattern for the latter.
 - Using TeamMember.count({ where: { teamId } }) is more reliable than reading members.length from a pre-loaded association, since the association may be stale.
+
+## US-043: Dashboard Quick Actions Backend (2026-03-30)
+**Requestor:** Jayanth
+
+### What was done
+- **packages/api/src/routes/users.ts**: Added POST /users/send-verification — auth required.
+  - Loads user by req.user.id; returns 400 ALREADY_VERIFIED if user.verified is true.
+  - Generates 32-byte hex token, updates emailVerifiedToken on user, calls sendVerificationEmail.
+  - Returns { success: true, data: { message: 'Verification email sent' } }.
+- **packages/api/src/routes/teams.ts**: GET /teams/me already present — no change needed.
+- **packages/api/src/routes/subscriptions.ts**: GET /subscriptions/status already present (added in US-035) — no change needed.
+- **packages/api/src/models/Subscription.ts**: Added illingInterval?: 'monthly' | 'annual' | null field (DB: billing_interval, ENUM type, allowNull: true).
+- **packages/api/src/models/Plan.ts**: Added stripePriceIdMonthly?: string | null (DB: stripe_price_id_monthly) and stripePriceIdAnnual?: string | null (DB: stripe_price_id_annual) — both nullable string columns.
+- TypeScript check: 0 errors.
+
+### Patterns used
+- Same crypto.randomBytes(32).toString('hex') token generation pattern as PUT /users/me email change flow.
+- emailVerifiedToken field (not verificationToken) — consistent with existing User model naming.

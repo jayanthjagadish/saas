@@ -1,3 +1,0 @@
-To: browsertest@example.com
-
-Confirm your signup at http://localhost:3000/verify?token=a854e6e4346b9d7c5851938fe7f6c6641bb170b8e2ee2f9a51df829c419b8274. Link expires in 24 hours.

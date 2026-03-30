@@ -1,20 +1,15 @@
-feat: US-024 payment retry, US-035 seat limits, US-042 billing calendar (Sprint 5)
+feat: US-043 dashboard quick actions + DB schema hardening (Sprint 6 — MVP complete)
 
-US-024 Payment Retry Logic
-- Webhook handler: invoice.payment_failed → past_due, invoice.paid → active
-- POST /subscriptions/retry-payment, GET /subscriptions/status with pastDue fields
-- Frontend: past-due alert banner + retry button on SubscriptionPage, warning card on Dashboard
-- Tests: 6 API + 4 E2E
+US-043 Dashboard Quick Actions
+- Quick Actions card on dashboard: Invite Team, Manage Subscription, View Analytics
+- Conditional "Resend Verification Email" button for unverified users
+- POST /users/send-verification endpoint
+- Tests: 5 API + 5 E2E
 
-US-035 Member Limit Enforcement
-- enforceSeats middleware blocks invites when at plan capacity
-- GET /subscriptions/status returns memberCount + memberLimit
-- Frontend: seat usage progress bar, invite disabled at capacity, upgrade CTA
-- Tests: 7 API + 4 E2E
+DB Schema Hardening
+- Subscription model: billingInterval column (monthly/annual)
+- Plan model: stripePriceIdMonthly, stripePriceIdAnnual columns
 
-US-042 Upcoming Billing Calendar
-- GET /subscriptions/calendar returns renewal/cancellation events for next 90 days
-- Frontend: UpcomingBillingSection with event timeline on BillingHistoryPage
-- Tests: 5 API + 4 E2E
+All 26 user stories from backlog complete. MVP ready.
 
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>

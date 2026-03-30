@@ -170,7 +170,7 @@ export interface BillingCalendar {
 }
 
 export interface DashboardData {
-  user: { name: string | null; email: string; createdAt: string };
+  user: { name: string | null; email: string; createdAt: string; emailVerified?: boolean };
   subscription: {
     status: string;
     planName: string;

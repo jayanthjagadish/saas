@@ -1,4 +1,0 @@
-To: test@fenster-test.com
-Subject: Password Reset Request
-
-Reset your password at http://localhost:3000/reset-password?token=00aa666626e24973b10d7112ed1799a195e4880ce38433d480666bac62c3805e. Link expires in 1 hour.

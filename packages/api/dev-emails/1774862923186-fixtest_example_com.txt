@@ -1,3 +1,0 @@
-To: fixtest@example.com
-
-Confirm your signup at http://localhost:3000/verify?token=cfe0e08d84b78b700f14ab2919e8883e8a65b2f759754d6a2453b07fdbf8ee07. Link expires in 24 hours.

@@ -174,6 +174,11 @@ class ApiService {
     return res.data;
   }
 
+  async resendVerification(): Promise<ApiResponse<{ message: string }>> {
+    const res = await this.client.post<ApiResponse<{ message: string }>>('/users/send-verification');
+    return res.data;
+  }
+
   // ===== Subscription Endpoints =====
 
   async getSubscription(): Promise<ApiResponse<Subscription>> {

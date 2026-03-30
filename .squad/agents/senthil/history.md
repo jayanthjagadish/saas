@@ -458,3 +458,28 @@ IIFEs inside JSX are not proper React components — they bypass React's reconci
 - SEAT_LIMIT_REACHED vs MEMBER_LIMIT_REACHED: The backend may return either code; always map both to the same user-facing message for resilience.
 - Tooltip on disabled buttons: Wrap disabled button in a div with title attribute -- title on the button itself is suppressed by browsers when disabled.
 - Non-critical fetches: Wrap optional data fetches (e.g., getSubscriptionStatus) in try/catch inside the main useEffect so they do not break page load if the endpoint is unavailable.
+
+## US-043: Dashboard Quick Actions (Frontend) --- 2026-04-01
+
+**Requested by:** Jayanth
+
+### Changes Made
+- packages/web/src/types/api.ts: Added mailVerified?: boolean to DashboardData.user.
+- packages/web/src/services/api.ts: Added esendVerification() calling POST /users/send-verification; confirmed getTeam() → GET /teams/me already exists.
+- packages/web/src/pages/dashboard.tsx:
+  - Added Link import from react-router-dom.
+  - Added erificationSent and erificationError state variables.
+  - Added handleResendVerification() async handler.
+  - Replaced old Quick Actions section (plain buttons with navigate()) with a proper card (white bg, rounded-lg, shadow-sm, p-6) containing:
+    - Invite Team Member → <Link to="/team"> (indigo-600 button)
+    - Manage Subscription → <Link to="/subscription"> (blue-600 button)
+    - View Analytics → <Link to="/analytics"> (green-600 button)
+    - Resend Verification Email → only shown when dashboardData?.user?.emailVerified === false && !verificationSent; hides after success; shows success/error inline.
+
+### TypeScript
+- tsc --noEmit exits 0 -- no type errors.
+
+## Learnings
+- Use <Link> (react-router-dom) for navigation buttons that are just routes — avoids useNavigate boilerplate and is more semantic.
+- Check dashboardData?.user?.emailVerified for conditional UI from enriched backend data rather than the lighter User object from /users/me.
+- When replacing existing Quick Action sections, match card style exactly (p-6 not p-4, font-semibold title not uppercase tracking-wide) per the spec.

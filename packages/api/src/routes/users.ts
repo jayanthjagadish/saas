@@ -104,4 +104,28 @@ router.post('/me/avatar', authMiddleware, (_req: AuthRequest, res: Response) => 
   return res.status(501).json({ success: false, error: 'AVATAR_UPLOAD_NOT_CONFIGURED' });
 });
 
+// POST /users/send-verification — resend verification email
+router.post('/send-verification', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
+
+    const user = await User.findByPk(userInfo.id);
+    if (!user) return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
+
+    if (user.verified) {
+      return res.status(400).json({ success: false, error: 'ALREADY_VERIFIED' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await user.update({ emailVerifiedToken: token });
+    await sendVerificationEmail(user.email, token);
+
+    return res.json({ success: true, data: { message: 'Verification email sent' } });
+  } catch (err) {
+    console.error('Error sending verification email:', err);
+    return res.status(500).json({ success: false, error: 'SEND_FAILED' });
+  }
+});
+
 export default router;

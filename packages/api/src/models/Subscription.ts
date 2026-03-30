@@ -19,6 +19,7 @@ export interface ISubscription {
   cancelledAt?: Date | null;
   lastPaymentFailedAt?: Date | null;
   paymentRetryCount?: number;
+  billingInterval?: 'monthly' | 'annual' | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ export class Subscription extends Model<ISubscription> implements ISubscription 
   declare cancelledAt?: Date | null;
   declare lastPaymentFailedAt?: Date | null;
   declare paymentRetryCount?: number;
+  declare billingInterval?: 'monthly' | 'annual' | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -110,6 +112,11 @@ Subscription.init(
       allowNull: false,
       defaultValue: 0,
       field: 'payment_retry_count',
+    },
+    billingInterval: {
+      type: DataTypes.ENUM('monthly', 'annual'),
+      allowNull: true,
+      field: 'billing_interval',
     },
     createdAt:{
       type: DataTypes.DATE,

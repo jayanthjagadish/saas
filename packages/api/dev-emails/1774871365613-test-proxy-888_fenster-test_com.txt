@@ -1,3 +1,0 @@
-To: test-proxy-888@fenster-test.com
-
-Confirm your signup at http://localhost:3000/verify?token=82550cb54f510311565b5d0427fdb559ff36bbe1dfc370de56b391313bd9f808. Link expires in 24 hours.

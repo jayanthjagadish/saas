@@ -1,3 +1,0 @@
-To: test-direct-999@fenster-test.com
-
-Confirm your signup at http://localhost:3000/verify?token=48670e11b038f6081d794589fa1ebc29b3ca4036e228279f655aa2101e0fd6cf. Link expires in 24 hours.
