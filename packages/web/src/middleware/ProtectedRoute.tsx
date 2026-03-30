@@ -8,6 +8,11 @@ interface Props {
 
 export default function ProtectedRoute({ children }: Props) {
   const auth = useAuth();
+  
+  if (!auth.isInitialized) {
+    return null;
+  }
+  
   if (!auth?.token) {
     return <Navigate to="/login" replace />;
   }

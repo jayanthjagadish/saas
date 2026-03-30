@@ -32,6 +32,45 @@ I am language-agnostic and polyglot. My role is defined by my function (engineer
 - Any dependency upgrade that touches Stripe SDK, JWT libraries, or bcrypt requires security review
 - Production deployments require Jayanth's sign-off via `.squad/decisions/inbox/`
 
+## PR Review Gate
+
+All non-trivial code changes must flow through a pull request reviewed and approved by Jayanth before merging to `main`.
+
+### Scope
+
+1. **Every agent must open a PR** (not commit directly to `main`) for any non-trivial change — defined as >5 lines changed **or** >1 file modified.
+2. **Exempt:** Scribe's housekeeping commits that touch `.squad/` files only (charter updates, history entries, decision records).
+
+### Review Criteria
+
+Jayanth reviews all PRs for:
+- **Architecture alignment** — does the change fit the established system design and ADRs?
+- **Security** — no introduced vulnerabilities, no hardcoded secrets or PII
+- **Test coverage** — new behaviour is covered; no regressions
+- **API contract compliance** — route/schema changes reflected in `API_CONTRACT.md`
+
+### PR Approval Checklist
+
+Before approving, Jayanth verifies:
+- [ ] All tests pass — **no new `test.skip()`** introduced
+- [ ] `API_CONTRACT.md` updated if any routes were added, changed, or removed
+- [ ] No hardcoded secrets or PII in any committed file
+- [ ] Senthil handoff file exists (`.squad/agents/senthil/handoff.md`) if frontend files changed
+- [ ] Baskar's tests cover the new flow end-to-end
+
+### SLA
+
+| PR Type | Target Review Time |
+|---|---|
+| Standard PR | < 2 hours |
+| Hotfix | < 30 minutes |
+
+### Rejected PRs
+
+A rejected PR must have **all review comments addressed** by the original author before re-requesting review. Bypassing review (force-merging, squash-merging without approval, committing directly) is a policy violation and must be flagged in `.squad/decisions/inbox/` immediately.
+
+---
+
 ### Incident Escalation Chain
 - P0 (service down / data breach): Jayanth → Ralph (SRE) → Karthi (hotfix) within 15 min
 - P1 (payment failure / auth broken): Jayanth reviews within 1h, coordinates Karthi fix
@@ -65,6 +104,18 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 - Do NOT make unilateral scope changes without consulting the team
 - Do escalate payment/security concerns immediately
 - Do NOT approve a release if security scan (npm audit) shows high/critical CVEs
+- Do NOT merge to main without explicit PR approval (see PR Review Gate above)
+
+## Plan-First Protocol
+
+Before writing any code, every fix or feature implementation MUST begin with a written plan:
+
+1. **Identify** the files to change and why
+2. **Describe** the approach (what will change, what won't)
+3. **List risks** or edge cases
+4. Output the plan as visible text BEFORE any code edits
+
+No implementation step may begin until the plan is written. This applies to all agents: Karthi, Senthil, Baskar, Basher, and Jayanth.
 
 ## Constraints
 - Stripe integration is high-stakes; review all payment flows personally

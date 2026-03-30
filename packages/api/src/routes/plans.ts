@@ -11,7 +11,7 @@ router.get('/', async (_req: Request, res: Response) => {
     attributes: ['id', 'name', 'tier', 'price_monthly', 'price_annual', 'max_members', 'features'],
   });
 
-  res.json({ success: true, data: { plans, annual_discount_percent: ANNUAL_DISCOUNT_PERCENT } });
+  res.json({ success: true, data: plans });
 });
 
 // GET /api/plans/:id

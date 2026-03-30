@@ -185,17 +185,23 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="flex flex-wrap gap-3">
-            <Link
-              to="/team"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              Invite Team Member →
-            </Link>
-            <Link
-              to="/subscription"
+            <button
+              onClick={() => navigate('/subscription')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
-              Manage Subscription →
+              Manage Billing
+            </button>
+            <button
+              onClick={() => navigate('/pricing')}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Upgrade Plan
+            </button>
+            <Link
+              to="/team"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+            >
+              Invite Team Member →
             </Link>
             <Link
               to="/analytics"

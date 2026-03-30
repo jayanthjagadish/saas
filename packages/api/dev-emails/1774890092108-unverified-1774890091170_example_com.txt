@@ -1,3 +1,0 @@
-To: unverified-1774890091170@example.com
-
-Confirm your signup at http://localhost:3000/verify?token=611997c2906c57a6f5aa94c3e8ea51460f2df6343cc9421b26c655e2fb2fd061. Link expires in 24 hours.

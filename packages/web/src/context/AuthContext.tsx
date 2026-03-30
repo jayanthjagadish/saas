@@ -6,6 +6,7 @@ type User = { id: string; email: string; name?: string } | null;
 interface AuthContextShape {
   user: User;
   token: string | null;
+  isInitialized: boolean;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -13,6 +14,7 @@ interface AuthContextShape {
 export const AuthContext = createContext<AuthContextShape>({
   user: null,
   token: null,
+  isInitialized: false,
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   login: async () => {},
   logout: async () => {},
@@ -35,6 +37,7 @@ function parseJwtExpiry(token: string): number | null {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(apiService.getAccessToken());
   const [user, setUser] = useState<User>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const scheduleRefresh = useCallback((t: string) => {
     const expiry = parseJwtExpiry(t);
@@ -77,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         scheduleRefresh(t);
       }
+      setIsInitialized(true);
     };
     init();
     // cleanup on unmount
@@ -119,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isInitialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

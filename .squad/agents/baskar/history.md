@@ -1215,3 +1215,124 @@ All fixed tests can run IF:
 px playwright test --project=chromium to validate all fixes
 4. **Consider test DB seeding:** Automate test user creation in CI pipeline
 
+
+## Learnings
+
+### Charter Update — Parallel Contract-First Testing Protocol (2026-03-30)
+**What changed:** Replaced the ## Handoff Gate — Wait for Senthil section (which mandated blocking until Senthil signalled UI completion) with a new ## Two-Phase Testing Protocol section. Also updated ## Constraints to formally allow 	est.todo() as a skeleton placeholder with a 24h fill-in SLA, and to explicitly ban 	est.skip().
+
+**Why it changed:** The old "wait for Senthil" gate created a serial bottleneck — Baskar sat idle while Senthil built UI. The new protocol unblocks Baskar to start the moment Karthi publishes API_CONTRACT.md. API contract tests (route existence, response shape, error codes, auth requirements) can be fully implemented without any UI selectors. UI-dependent test bodies are stubbed with 	est.todo() and filled in within 24h of receiving Senthil's handoff file in .squad/decisions/inbox/.
+
+**Key rule changes:**
+- Phase 1 (parallel with Senthil): skeleton files marked // SKELETON — awaiting Senthil handoff; API contract tests fully implemented; UI tests use 	est.todo()
+- Phase 2 (post-handoff): replace all 	est.todo() with real selectors from handoff; replace // SKELETON with // IMPLEMENTED
+- 	est.todo() allowed as placeholder only; 	est.skip() banned unconditionally
+
+## 2024-12-18 - Credential Fix for Subscription-Flows E2E Tests
+
+### Task
+Fix E2E test bugs causing failures in 151 test suite. Focus: credential issues in test files.
+
+### Work Completed
+
+#### FIX 1: Corrected Wrong Credentials in subscription-flows.spec.ts (HIGH IMPACT - fixes ~18 failures)
+- **File**: tests/e2e/subscription-flows.spec.ts
+- **Issue**: Test beforeEach was using incorrect test credentials
+  - Wrong: test@example.com / SecurePassword123!
+  - Correct: test@fenster-test.com / SecureTest123!@#
+- **Fix Applied**: Updated lines 14-15 to use established test account credentials from global setup
+- **Impact**: All 21 tests in subscription-flows.spec.ts can now authenticate successfully
+
+#### FIX 2: Audit of All E2E Test Files for Credential Issues
+Scanned all 18 test spec files in tests/e2e/:
+- All other files already use correct credentials (test@fenster-test.com / SecureTest123!@#)
+- auth-flow.spec.ts uses dynamic test users (correct pattern)
+- password-reset.spec.ts uses dedicated passwordreset@example.com account
+- **Result**: subscription-flows.spec.ts was the ONLY file with wrong credentials
+
+#### FIX 3: Review of password-reset.spec.ts (7 failures)
+- **File**: tests/e2e/password-reset.spec.ts
+- **Analysis**:
+  - Test correctly uses dedicated passwordreset@example.com test account
+  - Tests use correct selectors for form inputs and error messages
+  - Line 108-120: "Expired token" test has TODO noting backend returns 500 instead of 400 - **Backend issue (Karthi)**
+  - Assertion commented out due to known backend limitation
+- **Assessment**: No test bugs to fix. Failures are backend API issues.
+
+#### FIX 4: Review of auth-flow.spec.ts (4 failures)
+- **File**: tests/e2e/auth-flow.spec.ts
+- **Failures analyzed**:
+  1. "Unverified user cannot login" (line 129-148)
+     - Test expects error message to contain /verify/i
+     - **Backend issue (Karthi)**: API needs to return proper "verify email" error message
+  2. "Remember Me checkbox extends token expiry" (line 150-191)
+     - Test creates new user dynamically (correct pattern)
+     - Login redirect timeout - likely backend navigation issue
+  3. "Session persists across page reload" (line 193-221)
+     - Test creates new user dynamically (correct pattern)
+     - Timeout at waitForURL after verify link - timing/redirect issue
+  4. "Concurrent requests after logout are rejected" (line 305-345)
+     - Test creates new user dynamically (correct pattern)
+     - Same navigation/redirect issues
+- **Assessment**: No credential bugs. All tests use dynamic unique users or established test accounts correctly. Failures are backend behavior/timing issues.
+
+#### FIX 5: Review of team.spec.ts Password Reset Tests
+- **File**: tests/e2e/team.spec.ts (lines 43-72)
+- **Tests found**: 4 password reset UI tests
+  - "forgot password page is accessible"
+  - "forgot password form sends request" - uses correct test@fenster-test.com
+  - "login page has forgot password link"
+  - "reset password page shows error for missing token"
+- **Assessment**: All tests use correct credentials. No fixes needed.
+
+### Selector Issues Found (NOT Fixed - Out of Scope)
+
+While reviewing test failures, found selector issues in subscription-flows.spec.ts:
+1. **Strict mode violation** (line 26): page.locator('text=Pro') resolves to 2 elements
+   - Suggested fix: Use page.getByRole('heading', { name: 'Pro', exact: true })
+   - NOT fixed per task constraints (test files only, selector improvements out of scope for this task)
+
+### Key Learnings
+
+1. **Credential Audit Pattern**: Established test accounts from global setup:
+   - Primary test user: test@fenster-test.com / SecureTest123!@# (verified)
+   - Unverified user: unverified@fenster-test.com (no password - signup test only)
+   - Password reset user: passwordreset@example.com (for password reset flow tests)
+
+2. **Dynamic vs Static Test Users**:
+   - Auth flow tests correctly use dynamic users (e.g., e2e-test-timestamp@example.com)
+   - Feature tests (subscription, billing, etc.) correctly reuse established test account
+   - No hardcoded test@example.com or generic passwords allowed
+
+3. **Test Failure Root Causes**:
+   - Credential issues: 1 file (subscription-flows.spec.ts) - **FIXED**
+   - Selector issues: Present in multiple files - **OUT OF SCOPE** for this task
+   - Backend issues: Multiple files (auth-flow, password-reset) - **Karthi domain**
+   - Timing/navigation issues: Multiple tests - **Backend/UI integration issues**
+
+4. **Backend Issues for Karthi**:
+   - Unverified user login should return error with "verify" text (auth-flow.spec.ts line 147)
+   - Expired password reset tokens return 500 instead of 400 (password-reset.spec.ts line 108)
+   - Login navigation/redirect timing issues affecting multiple test suites
+
+### Test Impact
+
+**Before fix**:
+- subscription-flows.spec.ts: 18+ failures due to authentication failure in beforeEach
+- All 21 tests in suite unable to proceed past login
+
+**After fix**:
+- subscription-flows.spec.ts: Login succeeds, tests can proceed
+- Verified with test run: Login now works, test failures reduced to actual test issues (selectors, timing)
+
+### Files Modified
+- tests/e2e/subscription-flows.spec.ts - Lines 14-15 (credentials corrected)
+
+### Files Reviewed (No Changes Needed)
+- All 18 E2E test spec files audited for credential issues
+- tests/e2e/password-reset.spec.ts - Backend issues documented
+- tests/e2e/auth-flow.spec.ts - Backend issues documented
+- tests/e2e/team.spec.ts - Password reset tests reviewed
+
+---
+

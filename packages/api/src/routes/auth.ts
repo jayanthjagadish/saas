@@ -9,6 +9,7 @@ import { config } from '../config/index.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, revokeSession, requestPasswordReset, resetPassword } from '../services/auth.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { setLastVerificationToken, setLastResetToken } from './test-hooks.js';
+import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
@@ -156,7 +157,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     if (!user.verified && !user.emailVerifiedAt) {
-      res.status(403).json({ success: false, error: 'UNVERIFIED', message: 'Please verify your email before logging in' });
+      res.status(401).json({ success: false, error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address before logging in' });
       return;
     }
 
@@ -194,7 +195,19 @@ router.post('/login', async (req: Request, res: Response) => {
       maxAge: refreshDays * 24 * 60 * 60 * 1000,
     });
 
-    res.json({ success: true, data: { accessToken: accessToken, userId: user.id, email: user.email } });
+    res.json({
+      success: true,
+      data: {
+        accessToken: accessToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          companyName: user.name || null,
+          verified: user.verified,
+          role: 'user',
+        },
+      },
+    });
   } catch (err) {
     console.error('Login error', err);
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Failed to login' });
@@ -253,7 +266,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
-    res.json({ success: true, data: { accessToken: newAccess } });
+    res.json({ success: true, data: { accessToken: newAccess }, accessToken: newAccess });
   } catch (e) {
     console.error('Refresh error', e);
     res.status(401).json({ error: 'INVALID_REFRESH', message: 'Invalid refresh token' });
@@ -287,11 +300,15 @@ router.post('/logout', authMiddleware, async (req: AuthRequest, res: Response) =
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error', err);
-    if (err instanceof Error && err.message.includes('SESSION_REVOKED')) {
-      res.status(401).json({ error: 'SESSION_REVOKED', message: 'Session already revoked' });
-    } else {
-      res.status(401).json({ error: 'LOGOUT_FAILED', message: 'Failed to logout' });
+    if (err instanceof AppError) {
+      res.status(err.statusCode).json({ 
+        success: false,
+        error: err.code, 
+        message: err.message 
+      });
+      return;
     }
+    res.status(401).json({ success: false, error: 'LOGOUT_FAILED', message: 'Failed to logout' });
   }
 });
 
@@ -347,6 +364,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ 
+        success: false,
         error: 'VALIDATION_ERROR', 
         message: 'Invalid input',
         details: err.errors 
@@ -354,20 +372,17 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return;
     }
     
-    if (err instanceof Error) {
-      if (err.message.includes('INVALID_TOKEN') || err.message.includes('EXPIRED_TOKEN')) {
-        res.status(400).json({ 
-          error: err.message.includes('EXPIRED') ? 'EXPIRED_TOKEN' : 'INVALID_TOKEN',
-          message: err.message.includes('EXPIRED') 
-            ? 'Reset token has expired. Please request a new one.' 
-            : 'Invalid reset token.'
-        });
-        return;
-      }
+    if (err instanceof AppError) {
+      res.status(err.statusCode).json({ 
+        success: false,
+        error: err.code, 
+        message: err.message 
+      });
+      return;
     }
     
     console.error('Reset password error', err);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to reset password' });
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Failed to reset password' });
   }
 });
 

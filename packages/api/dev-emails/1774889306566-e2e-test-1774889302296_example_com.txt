@@ -1,3 +1,0 @@
-To: e2e-test-1774889302296@example.com
-
-Confirm your signup at http://localhost:3000/verify?token=9fc99a46ac0c30fe9abde29f07851da7dc28f254a8738b04096f27eeceda1e1b. Link expires in 24 hours.

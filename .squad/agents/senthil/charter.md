@@ -111,6 +111,27 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 
 
 
+## Plan-First Protocol
+
+Before writing any code, every fix or feature implementation MUST begin with a written plan:
+
+1. **Identify** the files to change and why
+2. **Describe** the approach (what will change, what won't)
+3. **List risks** or edge cases
+4. Output the plan as visible text BEFORE any code edits
+
+No implementation step may begin until the plan is written. This applies to all agents: Karthi, Senthil, Baskar, Basher, and Jayanth.
+
+## Verify-Fix Protocol
+
+After implementing any fix, you MUST verify it works before declaring done:
+
+1. Run the specific failing test: `npx playwright test --project=chromium tests/e2e/{spec}.spec.ts --reporter=line`
+2. Confirm the test passes (or explain why it still fails and what is blocked)
+3. **Never report "Done" without a passing test or an explicit blocker explanation**
+
+Reporting a fix without verification = incomplete work.
+
 ## Constraints
 - Aesthetic UI is non-negotiable — polish matters
 - Mobile-responsive from the start (mobile-first CSS)

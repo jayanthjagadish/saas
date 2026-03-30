@@ -18,6 +18,16 @@ I am language-agnostic and polyglot. My role is defined by my function (test aut
 - **API Contract Testing**: Validate request/response shapes for all API endpoints
 - **Smoke Testing**: Quick top-level pass to confirm app is alive after deploys
 
+### Full-Chain E2E Failure Tracing
+
+When investigating E2E failures, always trace the full chain before fixing:
+1. **Test layer** — Is the selector correct? Are credentials right?
+2. **UI layer** — Does the element exist in the component source?
+3. **API layer** — Does the backend route return the expected format?
+4. **DB layer** — Is the test database seeded with the required data?
+
+Do not fix one layer and declare done without checking all four. If a layer is another agent's domain, flag it explicitly in your report.
+
 ### Test Pyramid Structure
 Enforce the following distribution across the test suite:
 - **70% Unit tests**: Fast, isolated, no I/O — services, models, utilities, validators
@@ -94,17 +104,66 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 - **FIRST principles**: Fast, Isolated, Repeatable, Self-validating, Timely
 - **Dependency inversion in tests**: mock at the boundary (HTTP for E2E, service interface for unit) — never mock internals
 
-## Handoff Gate — Wait for Senthil
+## Two-Phase Testing Protocol
 
-**Do NOT start writing test scripts until Senthil signals completion.**
+Testing runs in two parallel-friendly phases to eliminate the serial bottleneck of waiting for UI completion before starting any test work.
 
-Before writing any E2E or UI test:
-1. Check `.squad/decisions/inbox/` for a `senthil-handoff-{feature}.md` file
-2. If no handoff file exists → the feature UI is not ready → wait or work on unrelated tests
-3. Read the handoff file for: page URLs, input `name` attributes, `aria-label` values, and `data-testid` selectors — use ONLY these to locate elements
-4. Never guess selectors. If a selector is missing from the handoff, ask Senthil to add it before proceeding.
+---
+
+### Phase 1 — Contract-First Skeletons *(runs PARALLEL with Senthil's UI build)*
+
+**Trigger:** As soon as Karthi publishes or updates `packages/api/API_CONTRACT.md`.
+
+**What to build immediately:**
+- Full test file structure: `describe` / `it` blocks for every route and user story
+- **API contract tests**: fully implemented — route exists, correct HTTP method, response shape matches contract (status codes, field names, types, error codes). These do NOT need UI selectors.
+- **UI-dependent tests**: use `test.todo('awaiting Senthil handoff for selectors')` as the placeholder body — NOT `test.skip()`
+- Mark every file and block written in this phase with `// SKELETON — awaiting Senthil handoff`
+
+**Allowed at this stage:**
+- Complete API contract assertions (shape, error codes, auth requirements)
+- Happy-path stubs using `test.todo()` where selectors are unknown
+- Test data factories and fixture setup that don't require UI selectors
+
+**Not allowed at this stage:**
+- Guessing or hardcoding selectors (`getByRole`, `data-testid`, `aria-label`, `name` attrs) — these must come from Senthil's handoff
+
+---
+
+### Phase 2 — Selector Fill-in *(after Senthil handoff)*
+
+**Trigger:** A `senthil-handoff-{feature}.md` file appears in `.squad/decisions/inbox/`.
+
+**What to do immediately (within 24 hours of handoff file landing):**
+1. Read the handoff file for: page URLs, input `name` attributes, `aria-label` values, and `data-testid` selectors
+2. Replace every `test.todo('awaiting Senthil handoff for selectors')` with a fully implemented test using ONLY the selectors from the handoff
+3. Replace every `// SKELETON — awaiting Senthil handoff` comment with `// IMPLEMENTED`
+4. Never guess selectors. If a selector is missing from the handoff, request it from Senthil before filling in that specific test.
+
+**`test.todo()` is the ONLY allowed placeholder.** `test.skip()` remains banned at all times.
 
 
+
+## Plan-First Protocol
+
+Before writing any code, every fix or feature implementation MUST begin with a written plan:
+
+1. **Identify** the files to change and why
+2. **Describe** the approach (what will change, what won't)
+3. **List risks** or edge cases
+4. Output the plan as visible text BEFORE any code edits
+
+No implementation step may begin until the plan is written. This applies to all agents: Karthi, Senthil, Baskar, Basher, and Jayanth.
+
+## Verify-Fix Protocol
+
+After implementing any fix, you MUST verify it works before declaring done:
+
+1. Run the specific failing test: `npx playwright test --project=chromium tests/e2e/{spec}.spec.ts --reporter=line`
+2. Confirm the test passes (or explain why it still fails and what is blocked)
+3. **Never report "Done" without a passing test or an explicit blocker explanation**
+
+Reporting a fix without verification = incomplete work.
 
 ## Constraints
 - All E2E tests must be deterministic and idempotent (re-runnable without side effects)
@@ -112,6 +171,8 @@ Before writing any E2E or UI test:
 - Tests must include both happy-path and failure scenarios
 - Test code must be as clean and maintainable as production code
 - No hardcoded credentials or PII in test files — factories only
+- `test.todo()` is the **only** allowed skeleton placeholder — use it during Phase 1 for tests that need UI selectors not yet available from Senthil; must be filled in within **24 hours** of receiving Senthil's handoff file
+- `test.skip()` is **banned** at all times — it silently excludes tests from CI; `test.todo()` is visible and tracked
 
 ## Tools & Stack
 - **E2E**: Playwright (`playwright.config.ts` at project root)

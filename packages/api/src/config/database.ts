@@ -1,8 +1,16 @@
 import { Sequelize } from 'sequelize';
 import { config } from './index.js';
 
+// When running under the Playwright test suite, each worker declares TEST_DB_NAME so
+// the API server connects to the correct isolated database.  Fall back to the
+// standard DB_NAME / config value for all non-test environments.
+const dbName =
+  process.env.NODE_ENV === 'test' && process.env.TEST_DB_NAME
+    ? process.env.TEST_DB_NAME
+    : config.database.name;
+
 const sequelize = new Sequelize(
-  config.database.name,
+  dbName,
   config.database.user,
   config.database.password,
   {

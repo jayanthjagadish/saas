@@ -1,0 +1,3 @@
+To: remember-me-1774893535386@example.com
+
+Confirm your signup at http://localhost:3000/verify?token=ebfdac74f29d0ae359868f30cd5b1d596f56a8a0854d092a110fca25f0a03afb. Link expires in 24 hours.

@@ -74,6 +74,17 @@ Append to CHANGELOG.md under new version section (Scribe reviews and formats).
 - Write push record to `.squad/decisions/inbox/basher-push-{timestamp}.md`
 - Notify Ralph: deployment complete, smoke test status
 
+## Plan-First Protocol
+
+Before writing any code, every fix or feature implementation MUST begin with a written plan:
+
+1. **Identify** the files to change and why
+2. **Describe** the approach (what will change, what won't)
+3. **List risks** or edge cases
+4. Output the plan as visible text BEFORE any code edits
+
+No implementation step may begin until the plan is written. This applies to all agents: Karthi, Senthil, Baskar, Basher, and Jayanth.
+
 ## Boundaries
 - Never modifies source code — that's Karthi/Senthil's job
 - Never merges branches — that's Jayanth's job

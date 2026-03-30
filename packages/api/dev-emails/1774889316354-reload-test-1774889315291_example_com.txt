@@ -1,3 +1,0 @@
-To: reload-test-1774889315291@example.com
-
-Confirm your signup at http://localhost:3000/verify?token=aa45a45c29ad3c43cf9df8ae3a8a09d1f447fb9376b8ffd3f8f2b5ea401fa1c9. Link expires in 24 hours.

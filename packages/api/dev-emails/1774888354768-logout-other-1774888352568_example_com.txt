@@ -1,3 +1,0 @@
-To: logout-other-1774888352568@example.com
-
-Confirm your signup at http://localhost:3000/verify?token=8809de21d3197aaebb7b3222dd382564b3865cf2792b401c4a7b3957df7dfae5. Link expires in 24 hours.
