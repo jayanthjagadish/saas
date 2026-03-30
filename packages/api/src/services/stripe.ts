@@ -44,6 +44,9 @@ export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
       case 'invoice.payment_succeeded':
         await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice, event.id);
         break;
+      case 'invoice.paid':
+        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice, event.id);
+        break;
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice, event.id);
         break;
@@ -192,7 +195,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription, even
     return;
   }
 
-  local.status = 'canceled';
+  local.status = 'cancelled';
   local.currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : local.currentPeriodEnd;
   await local.save();
   console.log(`Marked subscription ${local.id} as canceled`);
@@ -228,6 +231,8 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice, eventId?: 
 
   if (local && local.status !== 'active') {
     local.status = 'active';
+    local.lastPaymentFailedAt = null;
+    local.paymentRetryCount = 0;
     await local.save();
   }
 
@@ -252,6 +257,18 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId?: str
   } as any);
 
   console.log('Recorded failed invoice payment', payment.id);
+
+  // Update local subscription: mark past_due, record failure timestamp, increment retry count
+  if (local) {
+    local.status = 'past_due';
+    local.lastPaymentFailedAt = new Date();
+    local.paymentRetryCount = (local.paymentRetryCount ?? 0) + 1;
+    await local.save();
+    console.log(
+      `Subscription ${local.id} marked past_due. RetryCount=${local.paymentRetryCount}, ` +
+      `lastPaymentFailedAt=${local.lastPaymentFailedAt.toISOString()}`
+    );
+  }
 }
 
 export default { stripe, verifyWebhookSignature, handleWebhookEvent };

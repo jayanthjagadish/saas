@@ -19,6 +19,9 @@ import { Plan } from './models/index.js';
 
 const app = express();
 
+// Webhook route MUST come before express.json() so the raw body is available for signature verification
+app.use('/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
 // Middleware
 app.use(
   cors({
@@ -36,7 +39,6 @@ app.use('/auth', twoFactorRoutes);
 app.use('/users', userRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 app.use('/payments', paymentRoutes);
-app.use('/webhooks', webhookRoutes);
 app.use('/plans', plansRoutes);
 app.use('/teams', teamsRoutes);
 app.use('/dashboard', dashboardRoutes);

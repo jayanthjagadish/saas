@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import apiService from '../services/api';
 
 function AvatarInitials({ name, email }: { name: string | null; email: string }) {
@@ -78,6 +79,18 @@ export default function TeamPage() {
     },
   });
 
+  const { data: subStatus } = useQuery({
+    queryKey: ['subscriptionStatus'],
+    queryFn: async () => {
+      const r = await apiService.getSubscriptionStatus();
+      return r.data ?? null;
+    },
+  });
+
+  const memberCount = subStatus?.memberCount ?? team?.memberCount ?? 0;
+  const memberLimit = subStatus?.memberLimit ?? null;
+  const atCapacity = memberLimit !== null && memberCount >= memberLimit;
+
   const currentMember = members?.find((m) => m.userId === currentUser?.id);
   const canManage = currentMember?.role === 'owner' || currentMember?.role === 'admin';
 
@@ -104,9 +117,11 @@ export default function TeamPage() {
         setInviteEmail('');
         setInviteError(null);
         qc.invalidateQueries({ queryKey: ['teamInvites'] });
+        qc.invalidateQueries({ queryKey: ['subscriptionStatus'] });
       } else {
         const errMap: Record<string, string> = {
-          MEMBER_LIMIT_REACHED: 'Member limit reached — upgrade your plan to add more.',
+          SEAT_LIMIT_REACHED: "You've reached the member limit for your plan. Upgrade to add more.",
+          MEMBER_LIMIT_REACHED: "You've reached the member limit for your plan. Upgrade to add more.",
           INVITE_ALREADY_PENDING: 'An invite is already pending for this email.',
           ALREADY_A_MEMBER: 'This person is already on your team.',
           INSUFFICIENT_ROLE: 'You need owner or admin role to invite members.',
@@ -115,7 +130,15 @@ export default function TeamPage() {
         setInviteSuccess(null);
       }
     },
-    onError: () => { setInviteError('Failed to send invite.'); setInviteSuccess(null); },
+    onError: (err: any) => {
+      const code = err?.response?.data?.error?.code ?? err?.response?.data?.error;
+      if (code === 'SEAT_LIMIT_REACHED' || err?.response?.status === 403) {
+        setInviteError("You've reached the member limit for your plan. Upgrade to add more.");
+      } else {
+        setInviteError('Failed to send invite.');
+      }
+      setInviteSuccess(null);
+    },
   });
 
   const isLoading = teamLoading || membersLoading;
@@ -155,9 +178,26 @@ export default function TeamPage() {
 
       {/* Team Members */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Members {team ? `(${team.memberCount})` : ''}
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Members {team ? `(${team.memberCount})` : ''}
+          </h2>
+          {memberLimit !== null && (
+            <span className="text-sm text-gray-500">
+              {memberCount} / {memberLimit} seats used
+            </span>
+          )}
+        </div>
+        {memberLimit !== null && (
+          <div className="mb-4">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full transition-all ${atCapacity ? 'bg-red-500' : 'bg-indigo-500'}`}
+                style={{ width: `${Math.min(100, Math.round((memberCount / memberLimit) * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <LoadingSkeleton />
         ) : !members || members.length === 0 ? (
@@ -225,23 +265,51 @@ export default function TeamPage() {
       {/* Invite Member */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Invite Member</h2>
+        {atCapacity && (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start justify-between gap-3">
+            <p className="text-sm text-amber-800">
+              You've reached the member limit for your plan. Upgrade to add more.
+            </p>
+            <Link
+              to="/subscription"
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 whitespace-nowrap shrink-0"
+            >
+              Upgrade Plan →
+            </Link>
+          </div>
+        )}
         <div className="flex gap-3">
           <input
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="colleague@company.com"
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            disabled={atCapacity}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
           />
-          <button
-            onClick={() => { if (inviteEmail.trim()) inviteMutation.mutate(inviteEmail.trim()); }}
-            disabled={!inviteEmail.trim() || inviteMutation.isPending}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
-          </button>
+          <div title={atCapacity ? 'Upgrade your plan to add more members' : undefined}>
+            <button
+              onClick={() => { if (inviteEmail.trim()) inviteMutation.mutate(inviteEmail.trim()); }}
+              disabled={!inviteEmail.trim() || inviteMutation.isPending || atCapacity}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
+            </button>
+          </div>
         </div>
-        {inviteError && <p className="mt-2 text-sm text-red-600">{inviteError}</p>}
+        {inviteError && (
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <p className="text-sm text-red-600">{inviteError}</p>
+            {(inviteError.includes('member limit') || inviteError.includes('Upgrade')) && (
+              <Link
+                to="/subscription"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 whitespace-nowrap shrink-0"
+              >
+                Upgrade Plan →
+              </Link>
+            )}
+          </div>
+        )}
         {inviteSuccess && <p className="mt-2 text-sm text-green-600">{inviteSuccess}</p>}
       </div>
 

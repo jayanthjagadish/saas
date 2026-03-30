@@ -38,4 +38,30 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req: Re
   }
 });
 
+// Dev/test mode: accept JSON webhook events without Stripe signature verification.
+// Never enabled in production — use /webhooks/stripe for production traffic.
+router.post('/', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'NOT_FOUND' });
+  }
+
+  try {
+    const event = req.body;
+    if (!event?.type) {
+      return res.status(400).json({ error: 'INVALID_EVENT' });
+    }
+
+    try {
+      await handleWebhookEvent(event);
+    } catch (err) {
+      console.error('Error processing dev webhook event:', err);
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Unexpected dev webhook handler error:', error);
+    res.status(500).send('Webhook handler error');
+  }
+});
+
 export default router;

@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamMemberDetail, TeamInvite, UserProfile, Invoice, TwoFactorSetup, UsageStats, MemberGrowth } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamMemberDetail, TeamInvite, UserProfile, Invoice, TwoFactorSetup, UsageStats, MemberGrowth, BillingCalendar } from '../types/api';
 
 /**
  * API Service Layer
@@ -207,6 +207,16 @@ class ApiService {
     return res.data;
   }
 
+  async getSubscriptionStatus(): Promise<ApiResponse<SubscriptionStatus>> {
+    const res = await this.client.get<ApiResponse<SubscriptionStatus>>('/subscriptions/status');
+    return res.data;
+  }
+
+  async retryPayment(): Promise<ApiResponse<{ retried: boolean }>> {
+    const res = await this.client.post<ApiResponse<{ retried: boolean }>>('/subscriptions/retry-payment');
+    return res.data;
+  }
+
   async getDashboard(): Promise<ApiResponse<DashboardData>> {
     const response = await this.client.get<ApiResponse<DashboardData>>('/dashboard/me/dashboard');
     return response.data;
@@ -278,6 +288,11 @@ class ApiService {
 
   async getInvoices(): Promise<ApiResponse<{ invoices: Invoice[]; hasMore: boolean }>> {
     const res = await this.client.get('/subscriptions/invoices');
+    return res.data;
+  }
+
+  async getBillingCalendar(): Promise<ApiResponse<BillingCalendar>> {
+    const res = await this.client.get<ApiResponse<BillingCalendar>>('/subscriptions/calendar');
     return res.data;
   }
 

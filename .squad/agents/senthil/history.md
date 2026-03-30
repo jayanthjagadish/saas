@@ -378,3 +378,83 @@ IIFEs inside JSX are not proper React components — they bypass React's reconci
 
 ### TypeScript
 - `tsc --noEmit` exits 0 — no type errors.
+
+## US-042: Upcoming Billing Calendar Frontend — 2026-03-31
+
+**Requested by:** jayanth.jagadish
+
+### Changes Made
+
+- **packages/web/src/types/api.ts**: Added `BillingEvent` interface `{ date, type: 'renewal'|'trial_end'|'cancellation'|'invoice_due', label, amount?, currency }` and `BillingCalendar` interface `{ events: BillingEvent[], nextBillingDate: string | null, billingInterval: 'monthly' | 'annual' }`.
+- **packages/web/src/services/api.ts**: Added `getBillingCalendar()` method calling `GET /subscriptions/calendar`; returns `ApiResponse<BillingCalendar>`. Imported `BillingCalendar` type.
+- **packages/web/src/pages/BillingHistoryPage.tsx**: Added `UpcomingBillingSection` component above the invoice table:
+  - Fetches calendar via `useQuery(['billingCalendar'])` with 5-min stale time
+  - Shows loading skeleton (`CalendarSkeleton`) while fetching
+  - Empty state: "No upcoming billing events" when events array is empty
+  - Event list: each event shows emoji icon + colored border card (blue=renewal, orange=cancellation, gray=trial_end, yellow=invoice_due)
+  - Format: "Mar 1 — Subscription renewal · $49.00/mo"
+  - `nextBillingDate` shown prominently: "Next billing: March 1, 2024"
+  - Billing interval suffix applied to amounts (/mo or /yr)
+
+### TypeScript
+- `tsc --noEmit` exits 0 — no type errors.
+
+
+## US-024: Payment Retry Logic Frontend — 2026-03-30
+
+**Requested by:** Jayanth
+
+### Changes Made
+
+- **packages/web/src/types/api.ts**: Added pastDue?: boolean, lastPaymentFailedAt?: string, paymentRetryCount?: number to Subscription interface; added pastDue?, lastPaymentFailedAt?, paymentRetryCount? to the DashboardData.subscription nested type.
+- **packages/web/src/services/api.ts**: Added etryPayment() calling POST /subscriptions/retry-payment (no body, auth via bearer token from interceptor). Returns ApiResponse<{ retried: boolean }>.
+- **packages/web/src/pages/SubscriptionPage.tsx**:
+  - Added state: etrying, etrySuccess, etryError
+  - Added handleRetryPayment() handler with loading/success/error state management + etchSubscription() refresh on success
+  - Added **Past-Due Payment Alert Banner** at top of page (above other banners): shown when sub?.pastDue === true || sub?.status === 'past_due'; displays formatted lastPaymentFailedAt date, paymentRetryCount ("Failed N times"), inline success/error feedback, and a "Retry Payment" button with loading state
+- **packages/web/src/pages/dashboard.tsx**: Added compact red warning card when subscriptionData?.status === 'past_due' — shows "Payment Failed" message and "Manage Billing →" link to /subscription.
+
+### Key Patterns Used
+- Past-due check uses dual condition (pastDue === true || status === 'past_due') to handle both backend response shapes
+- Retry button disables during in-flight request (loading state via etrying boolean)
+- Dashboard banner is read-only, links to SubscriptionPage for the actual retry action
+- Intl date formatting for lastPaymentFailedAt
+
+### TypeScript
+- 	sc --noEmit exits 0 — no type errors.
+
+## Learnings
+- When backend may send past-due state as either pastDue: boolean field OR status: 'past_due', check both conditions in UI for resilience
+- Retry UI should refresh subscription state on success so banner disappears automatically
+- Dashboard compact banner pattern: show minimal info + link to detail page rather than duplicating retry logic
+
+## US-035: Member Limit Enforcement (Frontend) --- 2026-03-30
+
+**Requested by:** Jayanth
+
+### Changes Made
+
+- packages/web/src/types/api.ts: Added SubscriptionStatus interface { memberCount, memberLimit, planName, planId? }.
+- packages/web/src/services/api.ts: Added getSubscriptionStatus() calling GET /subscriptions/status; imported SubscriptionStatus type.
+- packages/web/src/pages/TeamPage.tsx:
+  - Added React Router Link import.
+  - Added subscriptionStatus query (GET /subscriptions/status) via React Query.
+  - Derived memberCount (from subStatus, fallback team.memberCount), memberLimit, and atCapacity boolean.
+  - Members card: seat usage text (X / Y seats used) + indigo/red progress bar above member list.
+  - Invite section: amber warning banner + Link to /subscription when atCapacity; input and button disabled at capacity; button wrapped in tooltip div.
+  - Invite error: shows inline Upgrade Plan link when error text references member limit.
+  - inviteMutation.onError: detects SEAT_LIMIT_REACHED code or 403 status and shows spec-compliant upgrade message.
+  - Error map updated: SEAT_LIMIT_REACHED now maps alongside MEMBER_LIMIT_REACHED.
+  - On successful invite: also invalidates subscriptionStatus cache to keep count fresh.
+- packages/web/src/pages/SubscriptionPage.tsx:
+  - Added subStatus state { memberCount, memberLimit } | null.
+  - Fetches api.getSubscriptionStatus() in the main useEffect (non-critical; errors silently ignored).
+  - Shows X of Y seats used below plan name/price in the current plan card.
+
+### TypeScript
+- tsc --noEmit exits 0 -- no type errors.
+
+## Learnings
+- SEAT_LIMIT_REACHED vs MEMBER_LIMIT_REACHED: The backend may return either code; always map both to the same user-facing message for resilience.
+- Tooltip on disabled buttons: Wrap disabled button in a div with title attribute -- title on the button itself is suppressed by browsers when disabled.
+- Non-critical fetches: Wrap optional data fetches (e.g., getSubscriptionStatus) in try/catch inside the main useEffect so they do not break page load if the endpoint is unavailable.

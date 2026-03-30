@@ -17,6 +17,8 @@ export interface ISubscription {
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
   cancelledAt?: Date | null;
+  lastPaymentFailedAt?: Date | null;
+  paymentRetryCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +35,8 @@ export class Subscription extends Model<ISubscription> implements ISubscription 
   declare currentPeriodEnd?: Date | null;
   declare cancelAtPeriodEnd?: boolean;
   declare cancelledAt?: Date | null;
+  declare lastPaymentFailedAt?: Date | null;
+  declare paymentRetryCount?: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -96,7 +100,18 @@ Subscription.init(
       allowNull: true,
       field: 'cancelled_at',
     },
-    createdAt: {
+    lastPaymentFailedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'last_payment_failed_at',
+    },
+    paymentRetryCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: 'payment_retry_count',
+    },
+    createdAt:{
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,

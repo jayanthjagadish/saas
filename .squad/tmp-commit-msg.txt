@@ -1,18 +1,20 @@
-feat: US-034 role management, US-041 analytics, US-006 2FA (Sprint 4)
+feat: US-024 payment retry, US-035 seat limits, US-042 billing calendar (Sprint 5)
 
-US-034 Member Role Management
-- TeamPage: role badges (owner/admin/member), change role dropdown, remove modal
-- API: getTeamMembers, updateMemberRole, removeMember
-- Tests: 8 API + 6 E2E
-
-US-041 Usage Analytics
-- Backend: GET /analytics/usage, GET /analytics/members/growth
-- Frontend: AnalyticsPage with stat cards + CSS bar chart, /analytics route
+US-024 Payment Retry Logic
+- Webhook handler: invoice.payment_failed → past_due, invoice.paid → active
+- POST /subscriptions/retry-payment, GET /subscriptions/status with pastDue fields
+- Frontend: past-due alert banner + retry button on SubscriptionPage, warning card on Dashboard
 - Tests: 6 API + 4 E2E
 
-US-006 Two-Factor Authentication (TOTP)
-- Backend: POST /auth/2fa/setup, /verify, /disable; User model updated
-- Frontend: ProfilePage Security card, QR code flow, enable/disable UI
-- Tests: 6 API + 5 E2E
+US-035 Member Limit Enforcement
+- enforceSeats middleware blocks invites when at plan capacity
+- GET /subscriptions/status returns memberCount + memberLimit
+- Frontend: seat usage progress bar, invite disabled at capacity, upgrade CTA
+- Tests: 7 API + 4 E2E
+
+US-042 Upcoming Billing Calendar
+- GET /subscriptions/calendar returns renewal/cancellation events for next 90 days
+- Frontend: UpcomingBillingSection with event timeline on BillingHistoryPage
+- Tests: 5 API + 4 E2E
 
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>

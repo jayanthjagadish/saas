@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { enforceSeats } from '../middleware/enforceSeats.js';
 import Team from '../models/Team.js';
 import TeamMember from '../models/TeamMember.js';
 import { User } from '../models/User.js';
@@ -85,7 +86,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 });
 
 // POST /teams/me/invites — create an invite (US-031)
-router.post('/me/invites', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.post('/me/invites', authMiddleware, enforceSeats, async (req: AuthRequest, res: Response) => {
   try {
     const userInfo = req.user!;
     const { email } = req.body;
@@ -100,18 +101,6 @@ router.post('/me/invites', authMiddleware, async (req: AuthRequest, res: Respons
     const myMembership = await TeamMember.findOne({ where: { teamId: team.id, userId: userInfo.id } });
     if (!myMembership || (myMembership.role !== 'owner' && myMembership.role !== 'admin')) {
       return res.status(403).json({ success: false, error: 'INSUFFICIENT_ROLE' });
-    }
-
-    // US-035: Check member limit from plan
-    const subscription = await Subscription.findOne({
-      where: { userId: userInfo.id, status: ['active', 'cancellation_pending'] },
-      include: [{ model: Plan, as: 'plan' }],
-      order: [['createdAt', 'DESC']],
-    });
-    const maxMembers = (subscription as any)?.plan?.max_members ?? 1;
-    const currentCount = (team as any).members?.length ?? 0;
-    if (currentCount >= maxMembers) {
-      return res.status(422).json({ success: false, error: 'MEMBER_LIMIT_REACHED', data: { limit: maxMembers } });
     }
 
     // Check for existing pending invite
@@ -206,17 +195,23 @@ router.post('/invites/:token/accept', authMiddleware, async (req: AuthRequest, r
       return res.json({ success: true, data: { alreadyMember: true } });
     }
 
-    // US-035: Re-check limit at acceptance time
+    // US-035: Re-check limit at acceptance time (checks team being joined, not caller's team)
     const team = await Team.findByPk(invite.teamId, { include: [{ model: TeamMember, as: 'members' }] });
     if (!team) return res.status(404).json({ success: false, error: 'TEAM_NOT_FOUND' });
     const subscription = await Subscription.findOne({
-      where: { userId: team.ownerId, status: ['active', 'cancellation_pending'] },
+      where: { userId: team.ownerId, status: ['active', 'cancellation_pending'] as any },
       include: [{ model: Plan, as: 'plan' }],
     });
-    const maxMembers = (subscription as any)?.plan?.max_members ?? 1;
+    const plan = (subscription as any)?.plan ?? null;
+    const maxMembers = plan?.max_members ?? 1;
+    const planName: string = plan?.name ?? 'Free';
     const currentCount = (team as any).members?.length ?? 0;
     if (currentCount >= maxMembers) {
-      return res.status(422).json({ success: false, error: 'MEMBER_LIMIT_REACHED' });
+      return res.status(403).json({
+        success: false,
+        error: 'SEAT_LIMIT_REACHED',
+        data: { current: currentCount, limit: maxMembers, plan: planName },
+      });
     }
 
     await TeamMember.create({ teamId: invite.teamId, userId: userInfo.id, role: 'member', joinedAt: new Date() });

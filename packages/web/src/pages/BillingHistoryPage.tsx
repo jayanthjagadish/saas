@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
-import type { Invoice } from '../types/api';
+import type { Invoice, BillingEvent } from '../types/api';
 
 function StatusBadge({ status }: { status: Invoice['status'] }) {
   const styles = {
@@ -28,6 +28,42 @@ function SkeletonRow() {
   );
 }
 
+function CalendarSkeleton() {
+  return (
+    <div className="animate-pulse space-y-3 p-6">
+      <div className="h-4 bg-gray-200 rounded w-48" />
+      <div className="h-12 bg-gray-100 rounded" />
+      <div className="h-12 bg-gray-100 rounded" />
+    </div>
+  );
+}
+
+function eventIcon(type: BillingEvent['type']) {
+  switch (type) {
+    case 'renewal':      return '🔄';
+    case 'cancellation': return '⚠️';
+    case 'trial_end':    return 'ℹ️';
+    case 'invoice_due':  return '📄';
+  }
+}
+
+function eventColorClass(type: BillingEvent['type']) {
+  switch (type) {
+    case 'renewal':      return 'border-blue-300 bg-blue-50';
+    case 'cancellation': return 'border-orange-300 bg-orange-50';
+    case 'trial_end':    return 'border-gray-300 bg-gray-50';
+    case 'invoice_due':  return 'border-yellow-300 bg-yellow-50';
+  }
+}
+
+function formatEventDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatNextBillingDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
 function formatAmount(amount: number, currency: string) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -41,6 +77,62 @@ function formatDate(dateStr: string) {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function UpcomingBillingSection() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['billingCalendar'],
+    queryFn: async () => {
+      const res = await api.getBillingCalendar();
+      return res.success && res.data ? res.data : null;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return (
+    <div className="bg-white shadow rounded-lg mb-6 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-900">Upcoming Billing</h2>
+      </div>
+
+      {isLoading ? (
+        <CalendarSkeleton />
+      ) : !data || data.events.length === 0 ? (
+        <div className="px-6 py-8 text-center text-gray-500 text-sm">
+          No upcoming billing events
+        </div>
+      ) : (
+        <div className="px-6 py-4 space-y-3">
+          {data.nextBillingDate && (
+            <p className="text-sm font-medium text-gray-700 mb-4">
+              Next billing:{' '}
+              <span className="text-gray-900 font-semibold">
+                {formatNextBillingDate(data.nextBillingDate)}
+              </span>
+            </p>
+          )}
+          {data.events.map((event, idx) => (
+            <div
+              key={idx}
+              className={`flex items-start gap-3 px-4 py-3 rounded-lg border ${eventColorClass(event.type)}`}
+            >
+              <span className="text-lg leading-none mt-0.5">{eventIcon(event.type)}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-800">
+                  {formatEventDate(event.date)} — {event.label}
+                  {event.amount !== undefined && (
+                    <span className="ml-1 text-gray-600 font-normal">
+                      · {formatAmount(event.amount, event.currency)}{data.billingInterval === 'monthly' ? '/mo' : '/yr'}
+                    </span>
+                  )}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function BillingHistoryPage() {
@@ -76,6 +168,8 @@ export default function BillingHistoryPage() {
         <h1 className="text-2xl font-bold text-gray-900">Billing History</h1>
         <p className="mt-1 text-sm text-gray-500">Download past invoices or review your payment history.</p>
       </div>
+
+      <UpcomingBillingSection />
 
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {isError ? (

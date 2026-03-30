@@ -92,6 +92,46 @@ function formatSubscriptionResponse(sub: Subscription & { plan?: InstanceType<ty
   };
 }
 
+// GET /subscriptions/status — subscription status with seat usage
+router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
+
+    const subscriptions = await Subscription.findAll({
+      where: { userId: userInfo.id },
+      include: [{ model: Plan, as: 'plan' }],
+      order: [['createdAt', 'DESC']],
+    });
+
+    const sub = subscriptions.length
+      ? ([...subscriptions].sort(
+          (a, b) => (STATUS_PRIORITY[a.status] ?? 99) - (STATUS_PRIORITY[b.status] ?? 99)
+        )[0] as Subscription & { plan?: InstanceType<typeof Plan> | null })
+      : null;
+
+    // Seat usage
+    const team = await Team.findOne({ where: { ownerId: userInfo.id } });
+    const memberCount = team ? await TeamMember.count({ where: { teamId: team.id } }) : 0;
+    const plan = (sub as any)?.plan ?? null;
+    const memberLimit: number = plan?.max_members ?? 1;
+
+    const baseData = sub ? formatSubscriptionResponse(sub) : null;
+
+    return res.json({
+      success: true,
+      data: {
+        ...baseData,
+        memberCount,
+        memberLimit,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching subscription status:', err);
+    return res.status(500).json({ success: false, error: 'FETCH_FAILED' });
+  }
+});
+
 // Get current user's active (or most recent) subscription — returns a single object
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -375,6 +415,212 @@ router.get('/invoices/:invoiceId/download', authMiddleware, async (req: AuthRequ
   }
 });
 
+// GET /subscriptions/calendar — upcoming billing events for the next 90 days
+router.get('/calendar', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
+
+    // Resolve subscription via TeamMember → Team → owner's Subscription, then fallback to own
+    let subscription: (Subscription & { plan?: InstanceType<typeof Plan> | null }) | null = null;
+
+    const membership = await TeamMember.findOne({ where: { userId: userInfo.id } });
+    if (membership) {
+      const team = await Team.findByPk(membership.teamId);
+      if (team) {
+        subscription = (await Subscription.findOne({
+          where: { userId: team.ownerId, status: ['active', 'cancellation_pending', 'past_due'] as any },
+          include: [{ model: Plan, as: 'plan' }],
+          order: [['createdAt', 'DESC']],
+        })) as (Subscription & { plan?: InstanceType<typeof Plan> | null }) | null;
+      }
+    }
+
+    if (!subscription) {
+      subscription = (await Subscription.findOne({
+        where: { userId: userInfo.id, status: ['active', 'cancellation_pending', 'past_due'] as any },
+        include: [{ model: Plan, as: 'plan' }],
+        order: [['createdAt', 'DESC']],
+      })) as (Subscription & { plan?: InstanceType<typeof Plan> | null }) | null;
+    }
+
+    if (!subscription) {
+      return res.json({ success: true, data: { events: [], nextBillingDate: null } });
+    }
+
+    const plan = subscription.plan ?? null;
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    const priceMonthly = Number(plan?.price_monthly ?? 0);
+    const priceAnnual = Number(plan?.price_annual ?? 0);
+    const pricePerMonth = Number(subscription.pricePerMonth ?? 0);
+
+    // Infer billing interval from how pricePerMonth relates to plan pricing
+    let billingInterval: 'monthly' | 'annual' = 'monthly';
+    if (
+      priceAnnual > 0 &&
+      Math.abs(pricePerMonth - priceAnnual / 12) < Math.abs(pricePerMonth - priceMonthly)
+    ) {
+      billingInterval = 'annual';
+    }
+
+    const planName = plan?.name ?? 'Subscription';
+    const displayAmount = billingInterval === 'annual' ? priceAnnual : priceMonthly;
+    const priceLabel =
+      billingInterval === 'annual'
+        ? `$${priceAnnual.toFixed(2)}/yr`
+        : `$${priceMonthly.toFixed(2)}/mo`;
+
+    type BillingEvent = {
+      date: string;
+      type: 'renewal' | 'trial_end' | 'cancellation' | 'invoice_due';
+      label: string;
+      amount?: number;
+      currency: string;
+    };
+
+    const events: BillingEvent[] = [];
+
+    if (subscription.currentPeriodEnd) {
+      const periodEnd = new Date(subscription.currentPeriodEnd);
+
+      if (subscription.cancelAtPeriodEnd) {
+        if (periodEnd >= now && periodEnd <= horizon) {
+          events.push({
+            date: periodEnd.toISOString().split('T')[0],
+            type: 'cancellation',
+            label: `Subscription cancellation — ${planName}`,
+            currency: 'usd',
+          });
+        }
+      } else if (billingInterval === 'annual') {
+        if (periodEnd >= now && periodEnd <= horizon) {
+          events.push({
+            date: periodEnd.toISOString().split('T')[0],
+            type: 'renewal',
+            label: `Subscription renewal — ${planName} ${priceLabel}`,
+            amount: displayAmount,
+            currency: 'usd',
+          });
+        }
+      } else {
+        // Monthly: generate up to 3 upcoming renewals within the 90-day window
+        let d = new Date(periodEnd);
+        for (let i = 0; i < 3; i++) {
+          if (d >= now && d <= horizon) {
+            events.push({
+              date: d.toISOString().split('T')[0],
+              type: 'renewal',
+              label: `Subscription renewal — ${planName} ${priceLabel}`,
+              amount: displayAmount,
+              currency: 'usd',
+            });
+          }
+          d = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate());
+        }
+      }
+    }
+
+    events.sort((a, b) => a.date.localeCompare(b.date));
+
+    const nextBillingDate = subscription.currentPeriodEnd
+      ? new Date(subscription.currentPeriodEnd).toISOString().split('T')[0]
+      : null;
+
+    return res.json({
+      success: true,
+      data: { events, nextBillingDate, billingInterval },
+    });
+  } catch (err) {
+    console.error('Error fetching billing calendar:', err);
+    res.status(500).json({ success: false, error: 'CALENDAR_FETCH_FAILED' });
+  }
+});
+
+// US-024: Get subscription status (includes pastDue flag)
+router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const subscription = await Subscription.findOne({
+      where: { userId: userInfo.id },
+      order: [['createdAt', 'DESC']],
+    });
+
+    const pastDue =
+      subscription?.status === 'past_due' || subscription?.status === 'unpaid';
+
+    return res.json({
+      success: true,
+      data: {
+        pastDue,
+        status: subscription?.status ?? null,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching subscription status:', err);
+    res.status(500).json({ error: 'STATUS_FETCH_FAILED' });
+  }
+});
+
+// US-024: Retry payment for past-due subscription
+router.post('/retry-payment', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const user = await User.findByPk(userInfo.id);
+    if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    const subscription = await Subscription.findOne({
+      where: { userId: userInfo.id, status: ['past_due', 'unpaid'] as any },
+      order: [['createdAt', 'DESC']],
+    });
+
+    if (!subscription) {
+      return res.status(400).json({ error: 'NO_PAST_DUE_SUBSCRIPTION' });
+    }
+
+    if (!subscription.stripeSubscriptionId) {
+      return res.status(400).json({ error: 'NO_STRIPE_SUBSCRIPTION' });
+    }
+
+    if (!user.stripeCustomerId) {
+      return res.status(400).json({ error: 'NO_STRIPE_CUSTOMER' });
+    }
+
+    const stripeInvoices = await stripe.invoices.list({
+      customer: user.stripeCustomerId,
+      subscription: subscription.stripeSubscriptionId,
+      status: 'open',
+      limit: 1,
+    });
+
+    if (!stripeInvoices.data.length) {
+      return res.status(404).json({ error: 'NO_OPEN_INVOICE' });
+    }
+
+    const invoice = stripeInvoices.data[0];
+    const paid = await stripe.invoices.pay(invoice.id);
+
+    return res.json({
+      success: true,
+      data: {
+        invoiceId: paid.id,
+        status: paid.status,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error retrying payment:', err);
+    if (err?.type === 'StripeCardError' || err?.code === 'card_declined') {
+      return res.status(400).json({ error: 'PAYMENT_FAILED', message: err.message });
+    }
+    res.status(500).json({ error: 'RETRY_FAILED' });
+  }
+});
+
 // US-023: Downgrade subscription
 router.post('/downgrade', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -462,6 +708,86 @@ router.post('/downgrade', authMiddleware, async (req: AuthRequest, res: Response
   } catch (err) {
     console.error('Error downgrading subscription:', err);
     res.status(500).json({ success: false, error: 'DOWNGRADE_FAILED' });
+  }
+});
+
+// GET /subscriptions/status — payment status including past_due fields
+router.get('/status', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
+
+    const subscription = await Subscription.findOne({
+      where: { userId: userInfo.id },
+      order: [['createdAt', 'DESC']],
+    });
+
+    if (!subscription) {
+      return res.json({
+        success: true,
+        data: { pastDue: false, lastPaymentFailedAt: null, paymentRetryCount: 0, status: null },
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        status: subscription.status,
+        pastDue: subscription.status === 'past_due',
+        lastPaymentFailedAt: subscription.lastPaymentFailedAt ? subscription.lastPaymentFailedAt.toISOString() : null,
+        paymentRetryCount: subscription.paymentRetryCount ?? 0,
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching subscription status:', err);
+    res.status(500).json({ success: false, error: 'STATUS_FETCH_FAILED' });
+  }
+});
+
+// POST /subscriptions/retry-payment — manually trigger Stripe invoice retry
+router.post('/retry-payment', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
+
+    const subscription = await Subscription.findOne({
+      where: { userId: userInfo.id },
+      order: [['createdAt', 'DESC']],
+    });
+
+    if (!subscription) {
+      return res.status(404).json({ success: false, error: 'NO_SUBSCRIPTION' });
+    }
+
+    if (!subscription.stripeSubscriptionId) {
+      return res.status(400).json({ success: false, error: 'NO_STRIPE_SUBSCRIPTION' });
+    }
+
+    // Retrieve the Stripe subscription to get the latest invoice
+    const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+    const latestInvoiceId = stripeSub.latest_invoice ? String(stripeSub.latest_invoice) : null;
+
+    if (!latestInvoiceId) {
+      return res.status(400).json({ success: false, error: 'NO_INVOICE_FOUND' });
+    }
+
+    // Attempt to pay the latest invoice
+    const paid = await stripe.invoices.pay(latestInvoiceId);
+
+    return res.json({
+      success: true,
+      data: {
+        invoiceId: paid.id,
+        invoiceStatus: paid.status,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error retrying payment:', err);
+    // Stripe returns a specific error when invoice is already paid
+    if (err?.code === 'invoice_payment_intent_requires_action' || err?.code === 'invoice_already_paid') {
+      return res.status(400).json({ success: false, error: err.code.toUpperCase() });
+    }
+    res.status(500).json({ success: false, error: 'RETRY_FAILED' });
   }
 });
 

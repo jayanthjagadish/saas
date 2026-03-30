@@ -16,6 +16,19 @@ This is a subscription-based SaaS with aesthetic UI. Focus on payment reliabilit
 
 **Architecture Decisions:**
 
+
+### Implemented US-042: Upcoming Billing Calendar endpoint (GET /subscriptions/calendar)
+**Date:** 2026-03-28
+
+- Added GET /subscriptions/calendar (auth required) to packages/api/src/routes/subscriptions.ts
+- Resolves subscription via TeamMember → Team (owner) → Subscription chain, with fallback to own subscription
+- Infers billing interval (monthly/annual) from plan pricing fields (price_monthly vs price_annual/12)
+- Generates up to 3 monthly renewals or 1 annual renewal within 90-day window
+- Returns cancellation event type when cancelAtPeriodEnd === true
+- Subscription model has no 	rialEnd field — trial_end events skipped (would need schema addition)
+- Zero TypeScript errors confirmed (
+px tsc --noEmit)
+- No new model fields or migrations needed
 ### Implemented US-001: User Signup with Email Verification (2026-03-28)
 - Added email verification fields to User model and migration
 - Implemented signup and verify-email endpoints
@@ -509,3 +522,50 @@ ame field already existed.
 
 ## US-023: Downgrade Subscription (2025-07-10)
 Added POST /subscriptions/downgrade. Member limit check via TeamMember. Stripe update with credit_unused (cast as any for v14). Dev email via sendDowngradeEmail(). Decisions in .squad/decisions/inbox/karthi-downgrade.md
+
+## US-024: Payment Retry Logic Backend (2026-03-30)
+**Requestor:** Jayanth
+
+### What was done
+- **Subscription.ts**: Added lastPaymentFailedAt?: Date | null (DB: last_payment_failed_at) and paymentRetryCount?: number (DB: payment_retry_count, default 0). past_due was already in the ENUM.
+- **services/stripe.ts**: Updated handleInvoicePaymentFailed to set status = 'past_due', record lastPaymentFailedAt = new Date(), and increment paymentRetryCount. Updated handleInvoicePaymentSucceeded (also wired to invoice.paid) to clear lastPaymentFailedAt = null and reset paymentRetryCount = 0 when restoring ctive. Updated handleSubscriptionDeleted to use cancelled (double-l) per team convention. Added invoice.paid case to the webhook switch.
+- **routes/subscriptions.ts**: Added GET /subscriptions/status returning { pastDue, lastPaymentFailedAt, paymentRetryCount, status }. Added POST /subscriptions/retry-payment that retrieves latest Stripe invoice and calls stripe.invoices.pay(latestInvoiceId).
+- **app.ts**: Moved webhook route BEFORE xpress.json() and applied xpress.raw({ type: 'application/json' }) at the app level for /webhooks path. This ensures the raw body buffer is preserved for Stripe signature verification.
+
+### Key Decisions
+- Webhook raw body handling is done at app.ts level (not only inside router) to prevent express.json() from consuming the body before the raw parser
+- invoice.paid is treated the same as invoice.payment_succeeded (both restore active + clear failure fields)
+- paymentRetryCount is reset to 0 on successful payment, not just cleared
+- Used cancelled (double-l) for subscription.deleted to match team convention from US-025
+
+### TSC Result
+Zero TypeScript errors.
+
+## US-035: Member Limit Enforcement (Hard Block) (2026-07-13)
+**Requestor:** Jayanth
+
+### What was done
+- Created packages/api/src/middleware/enforceSeats.ts — reusable middleware that:
+  - Finds the user's team (owned first, then via membership)
+  - Fetches the team owner's active subscription with plan
+  - Counts current TeamMember rows for the team
+  - Returns 403 { success: false, error: 'SEAT_LIMIT_REACHED', data: { current, limit, plan } } if at or over limit
+  - Falls through via 
+ext() otherwise
+- Updated packages/api/src/routes/teams.ts:
+  - Imported nforceSeats middleware
+  - Applied nforceSeats to POST /teams/me/invites (replaced inline 422 check)
+  - Updated accept route (POST /teams/invites/:token/accept) inline check from 422/MEMBER_LIMIT_REACHED → 403/SEAT_LIMIT_REACHED with full { current, limit, plan } payload
+- Added GET /subscriptions/status to packages/api/src/routes/subscriptions.ts:
+  - Returns all subscription fields from ormatSubscriptionResponse
+  - Plus memberCount: N, memberLimit: N from Team and Plan
+
+### Key Decisions
+- enforceSeats checks the **caller's** team (works for invite creation where caller is owner/admin)
+- Accept route keeps inline check since it checks the **invite's** team (not caller's team — different ownership)
+- maxMembers defaults to 1 when no active subscription found (free tier = 1 seat means owner only)
+- Plan.max_members already existed — no model changes needed
+
+## Learnings
+- For middleware that checks seat limits, the approach differs between invite creation (check caller's team) and invite acceptance (check the team being joined). A single middleware doesn't cleanly cover both cases; inline check at accept time is the right pattern for the latter.
+- Using TeamMember.count({ where: { teamId } }) is more reliable than reading members.length from a pre-loaded association, since the association may be stale.

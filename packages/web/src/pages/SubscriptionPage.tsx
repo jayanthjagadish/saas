@@ -35,6 +35,7 @@ export default function SubscriptionPage() {
   const [sub, setSub] = useState<any | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [subStatus, setSubStatus] = useState<{ memberCount: number; memberLimit: number } | null>(null);
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,9 @@ export default function SubscriptionPage() {
   const [downgrading, setDowngrading] = useState(false);
   const [downgradeSuccess, setDowngradeSuccess] = useState<string | null>(null);
   const [memberLimitError, setMemberLimitError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retrySuccess, setRetrySuccess] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   const fetchSubscription = async () => {
     const s = await api.getSubscription();
@@ -62,6 +66,12 @@ export default function SubscriptionPage() {
         setPayments(p.data || []);
         const pl = await api.getPlans();
         setPlans(pl.data || []);
+        try {
+          const ss = await api.getSubscriptionStatus();
+          if (ss.data) setSubStatus(ss.data);
+        } catch {
+          // subscription status is non-critical; ignore errors
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load subscription';
         setError(message);
@@ -106,6 +116,22 @@ export default function SubscriptionPage() {
     setSelectedPlan(plan);
     setMemberLimitError(null);
     setShowDowngradeModal(true);
+  };
+
+  const handleRetryPayment = async () => {
+    setRetrying(true);
+    setRetrySuccess(false);
+    setRetryError(null);
+    try {
+      await api.retryPayment();
+      setRetrySuccess(true);
+      await fetchSubscription();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to retry payment';
+      setRetryError(message);
+    } finally {
+      setRetrying(false);
+    }
   };
 
   const handleDowngrade = async () => {
@@ -155,7 +181,42 @@ export default function SubscriptionPage() {
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Subscription</h1>
 
-      {/* Reactivate Success Banner */}
+      {/* Past-Due Payment Alert Banner */}
+      {(sub?.pastDue === true || sub?.status === 'past_due') && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-400 rounded">
+          <div className="flex items-start gap-3">
+            <svg className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-900">
+                ⚠️ Payment Failed — Your last payment failed. Retry now to keep your subscription active.
+              </p>
+              {sub?.lastPaymentFailedAt && (
+                <p className="text-xs text-red-700 mt-1">
+                  Failed on {new Date(sub.lastPaymentFailedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {sub?.paymentRetryCount != null && sub.paymentRetryCount > 0 && (
+                    <span className="ml-2">· Failed {sub.paymentRetryCount} {sub.paymentRetryCount === 1 ? 'time' : 'times'}</span>
+                  )}
+                </p>
+              )}
+              {retrySuccess && (
+                <p className="text-xs text-green-700 mt-1 font-medium">✓ Payment retried successfully. Refreshing subscription…</p>
+              )}
+              {retryError && (
+                <p className="text-xs text-red-700 mt-1">{retryError}</p>
+              )}
+              <button
+                onClick={handleRetryPayment}
+                disabled={retrying}
+                className="mt-2 px-4 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50 font-medium"
+              >
+                {retrying ? 'Retrying…' : 'Retry Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {reactivateSuccess && (
         <div className="mb-4 p-4 bg-green-50 border border-green-400 rounded flex items-start gap-2">
           <svg className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -228,6 +289,11 @@ export default function SubscriptionPage() {
               <div className="text-sm text-gray-600">
                 {sub.price_display} • Renews {endDate?.toLocaleDateString() ?? 'N/A'}
               </div>
+              {subStatus && (
+                <div className="mt-1 text-sm text-gray-500">
+                  {subStatus.memberCount} of {subStatus.memberLimit} seats used
+                </div>
+              )}
             </div>
             <div className="space-x-2">
               {!cancelInfo && (

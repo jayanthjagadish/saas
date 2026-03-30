@@ -57,6 +57,12 @@ export interface Subscription {
   /** Unix timestamp (seconds) — alternative casing from backend */
   current_period_end?: number;
   cancelAtPeriodEnd: boolean;
+  /** Whether the subscription is past-due (payment failed) */
+  pastDue?: boolean;
+  /** ISO timestamp of the last payment failure */
+  lastPaymentFailedAt?: string;
+  /** Number of times payment has been retried / failed */
+  paymentRetryCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,6 +148,27 @@ export interface MemberGrowth {
   count: number;
 }
 
+export interface SubscriptionStatus {
+  memberCount: number;
+  memberLimit: number;
+  planName: string;
+  planId?: string;
+}
+
+export interface BillingEvent {
+  date: string;
+  type: 'renewal' | 'trial_end' | 'cancellation' | 'invoice_due';
+  label: string;
+  amount?: number;
+  currency: string;
+}
+
+export interface BillingCalendar {
+  events: BillingEvent[];
+  nextBillingDate: string | null;
+  billingInterval: 'monthly' | 'annual';
+}
+
 export interface DashboardData {
   user: { name: string | null; email: string; createdAt: string };
   subscription: {
@@ -152,6 +179,9 @@ export interface DashboardData {
     currentPeriodEnd: string | null;
     daysUntilRenewal: number | null;
     cancelAtPeriodEnd: boolean;
+    pastDue?: boolean;
+    lastPaymentFailedAt?: string;
+    paymentRetryCount?: number;
   } | null;
   team: {
     name: string;
