@@ -2,7 +2,7 @@ import { stripe } from './stripe.js';
 import { Subscription } from '../models/Subscription.js';
 import { User } from '../models/User.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { sendCancellationEmail } from './email.js';
+import { sendCancellationEmail, sendCancelEmail } from './email.js';
 
 export async function cancelSubscription(userId: string): Promise<{
   end_date: Date;
@@ -85,7 +85,79 @@ export async function reactivateSubscription(userId: string): Promise<void> {
   console.log(`Subscription ${subscription.id} reactivated`);
 }
 
+/** Cancel subscription (US-025): sets status 'cancelled', stores cancelledAt, returns accessUntil */
+export async function cancelSubscriptionV2(userId: string): Promise<{ accessUntil: Date }> {
+  const subscription = await Subscription.findOne({
+    where: { userId, status: 'active' }
+  });
+
+  if (!subscription) {
+    throw new AppError(404, 'NO_ACTIVE_SUBSCRIPTION', 'No active subscription found');
+  }
+
+  if (!subscription.stripeSubscriptionId) {
+    throw new AppError(400, 'INVALID_SUBSCRIPTION', 'Cannot cancel local subscription');
+  }
+
+  const stripeSubscription = await stripe.subscriptions.update(
+    subscription.stripeSubscriptionId,
+    { cancel_at_period_end: true }
+  );
+
+  const accessUntil = new Date(stripeSubscription.current_period_end * 1000);
+  const now = new Date();
+
+  subscription.status = 'cancelled';
+  subscription.cancelAtPeriodEnd = true;
+  subscription.cancelledAt = now;
+  subscription.currentPeriodEnd = accessUntil;
+  await subscription.save();
+
+  const user = await User.findByPk(userId);
+  if (user) {
+    await sendCancelEmail(user.email, accessUntil);
+  }
+
+  console.log(`Subscription ${subscription.id} cancelled via US-025, access until ${accessUntil.toISOString()}`);
+
+  return { accessUntil };
+}
+
+/** Reactivate subscription (US-025): clears cancel_at_period_end, restores 'active' */
+export async function reactivateSubscriptionV2(userId: string): Promise<void> {
+  const subscription = await Subscription.findOne({
+    where: { userId, status: 'cancelled' }
+  });
+
+  if (!subscription) {
+    throw new AppError(404, 'NO_PENDING_CANCELLATION', 'No cancelled subscription found');
+  }
+
+  if (!subscription.stripeSubscriptionId) {
+    throw new AppError(400, 'INVALID_SUBSCRIPTION', 'Cannot reactivate local subscription');
+  }
+
+  // Only reactivate if still within the period
+  if (subscription.currentPeriodEnd && subscription.currentPeriodEnd < new Date()) {
+    throw new AppError(400, 'PERIOD_ENDED', 'Subscription period has already ended');
+  }
+
+  await stripe.subscriptions.update(
+    subscription.stripeSubscriptionId,
+    { cancel_at_period_end: false }
+  );
+
+  subscription.status = 'active';
+  subscription.cancelAtPeriodEnd = false;
+  subscription.cancelledAt = null;
+  await subscription.save();
+
+  console.log(`Subscription ${subscription.id} reactivated via US-025`);
+}
+
 export default {
   cancelSubscription,
-  reactivateSubscription
+  reactivateSubscription,
+  cancelSubscriptionV2,
+  reactivateSubscriptionV2,
 };

@@ -47,14 +47,22 @@ function DashboardOverviewCard({ data }: { data: DashboardData }) {
           </div>
         )}
 
-        {/* Renewal */}
+        {/* Renewal / Cancels */}
         {sub?.currentPeriodEnd && (
           <div>
-            <p className="text-sm text-gray-500 mb-1">Renews</p>
-            <p className="text-lg font-semibold">
-              {sub.daysUntilRenewal !== null ? `in ${sub.daysUntilRenewal} days` : '—'}
+            <p className="text-sm text-gray-500 mb-1">
+              {sub.cancelAtPeriodEnd ? 'Cancels on' : 'Renews'}
             </p>
-            <p className="text-xs text-gray-400">{new Date(sub.currentPeriodEnd).toLocaleDateString()}</p>
+            <p className={`text-lg font-semibold ${sub.cancelAtPeriodEnd ? 'text-yellow-700' : ''}`}>
+              {sub.cancelAtPeriodEnd
+                ? new Date(sub.currentPeriodEnd).toLocaleDateString()
+                : sub.daysUntilRenewal !== null
+                ? `in ${sub.daysUntilRenewal} days`
+                : '—'}
+            </p>
+            {!sub.cancelAtPeriodEnd && (
+              <p className="text-xs text-gray-400">{new Date(sub.currentPeriodEnd).toLocaleDateString()}</p>
+            )}
           </div>
         )}
 

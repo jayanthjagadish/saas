@@ -103,6 +103,16 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface Invoice {
+  id: string;
+  date: string;
+  amount: number;
+  currency: string;
+  status: 'paid' | 'pending' | 'failed';
+  planName: string;
+  invoicePdfUrl: string | null;
+}
+
 export interface DashboardData {
   user: { name: string | null; email: string; createdAt: string };
   subscription: {

@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamInvite, UserProfile } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamInvite, UserProfile, Invoice } from '../types/api';
 
 /**
  * API Service Layer
@@ -193,13 +193,18 @@ class ApiService {
   }
 
   async cancelSubscription(): Promise<ApiResponse<{ end_date: string; days_remaining: number }>> {
-    const response = await this.client.post<ApiResponse<{ end_date: string; days_remaining: number }>>('/subscriptions/me/cancel');
+    const response = await this.client.post<ApiResponse<{ end_date: string; days_remaining: number }>>('/subscriptions/cancel');
     return response.data;
   }
 
   async reactivateSubscription(): Promise<ApiResponse<Subscription>> {
-    const response = await this.client.post<ApiResponse<Subscription>>('/subscriptions/me/reactivate');
+    const response = await this.client.post<ApiResponse<Subscription>>('/subscriptions/reactivate');
     return response.data;
+  }
+
+  async downgradeSubscription(planId: string, billingInterval: string): Promise<ApiResponse<any>> {
+    const res = await this.client.post('/subscriptions/downgrade', { planId, billingInterval });
+    return res.data;
   }
 
   async getDashboard(): Promise<ApiResponse<DashboardData>> {
@@ -259,6 +264,11 @@ class ApiService {
         error: { code: 'FETCH_FAILED', message: 'Failed to fetch plans' }
       } as ApiResponse<any>;
     }
+  }
+
+  async getInvoices(): Promise<ApiResponse<{ invoices: Invoice[]; hasMore: boolean }>> {
+    const res = await this.client.get('/subscriptions/invoices');
+    return res.data;
   }
 
   // ===== Token Management (in-memory) =====

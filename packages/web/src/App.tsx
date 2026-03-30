@@ -16,6 +16,7 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import TeamPage from './pages/TeamPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import ProfilePage from './pages/ProfilePage';
+import BillingHistoryPage from './pages/BillingHistoryPage';
 import ProtectedRoute from './middleware/ProtectedRoute';
 import './index.css';
 
@@ -49,6 +50,7 @@ function App() {
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/billing" element={<ProtectedRoute><BillingHistoryPage /></ProtectedRoute>} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
           </Routes>
         </Layout>

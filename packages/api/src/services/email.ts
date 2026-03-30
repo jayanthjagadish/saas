@@ -56,4 +56,44 @@ export async function sendCancellationEmail(to: string, endDate: Date): Promise<
   console.log(`Cancellation email written to ${filename}`);
 }
 
-export default { sendVerificationEmail, sendPasswordResetEmail, sendCancellationEmail };
+export async function sendCancelEmail(to: string, accessUntil: Date): Promise<void> {
+  const accessDate = accessUntil.toISOString().split('T')[0];
+  const text = `Your subscription has been cancelled. Access continues until ${accessDate}.`;
+
+  if (config.app.nodeEnv === 'production') {
+    // TODO: integrate SendGrid or SMTP
+    console.log(`(PROD) Would send cancel email to ${to}: ${text}`);
+    return;
+  }
+
+  // Dev: write to local file using cancel-{email}-{timestamp}.txt naming
+  const timestamp = Date.now();
+  const filename = path.join(DEV_EMAIL_DIR, `cancel-${to}-${timestamp}.txt`);
+  const content = `To: ${to}\nSubject: Subscription Cancelled\n\nAccess Until: ${accessUntil.toISOString()}\n\n${text}`;
+  await fs.promises.writeFile(filename, content, 'utf8');
+  console.log(`Cancel email written to ${filename}`);
+}
+
+export async function sendDowngradeEmail(
+  to: string,
+  planName: string,
+  newPrice: number,
+  billingInterval: 'monthly' | 'annual',
+  effectiveDate: Date
+): Promise<void> {
+  const intervalLabel = billingInterval === 'annual' ? 'year' : 'month';
+  const text = `Your subscription has been downgraded to the ${planName} plan at $${newPrice.toFixed(2)}/${intervalLabel}, effective ${effectiveDate.toISOString().split('T')[0]}.`;
+
+  if (config.app.nodeEnv === 'production') {
+    console.log(`(PROD) Would send downgrade email to ${to}: ${text}`);
+    return;
+  }
+
+  const timestamp = Date.now();
+  const filename = path.join(DEV_EMAIL_DIR, `downgrade-${to}-${timestamp}.txt`);
+  const content = `To: ${to}\nSubject: Subscription Downgrade Confirmed\n\nPlan: ${planName}\nNew Price: $${newPrice.toFixed(2)}/${intervalLabel}\nEffective Date: ${effectiveDate.toISOString()}\n\n${text}`;
+  await fs.promises.writeFile(filename, content, 'utf8');
+  console.log(`Downgrade email written to ${filename}`);
+}
+
+export default { sendVerificationEmail, sendPasswordResetEmail, sendCancellationEmail, sendCancelEmail, sendDowngradeEmail };

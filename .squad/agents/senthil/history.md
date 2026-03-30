@@ -319,3 +319,62 @@ IIFEs inside JSX are not proper React components — they bypass React's reconci
 - Matches existing Tailwind design (bg-white rounded-lg shadow-sm, primary-600 buttons)
 
 **TypeScript:** 0 errors (tsc --noEmit exits 0).
+
+### 2026-03-31 — Implemented US-023 Downgrade Subscription Frontend
+
+**Task:** Add downgrade flow to `SubscriptionPage.tsx`.
+
+**Files changed:**
+- `packages/web/src/services/api.ts` — Added `downgradeSubscription(planId, billingInterval)` calling `POST /subscriptions/downgrade`
+- `packages/web/src/pages/SubscriptionPage.tsx` — Full downgrade flow implementation
+
+**SubscriptionPage additions:**
+- Added `Plan` interface and `TIER_ORDER` / `getTierRank` / `deriveTier` helpers for tier comparison
+- Added `fetchSubscription` helper (extracted from useEffect, reused on success)
+- Plans fetched in initial `useEffect` alongside subscription + payments
+- **Plan Comparison section**: billing interval toggle (Monthly/Annual) + 3-column plan cards. Button label is "Current Plan" (disabled), "Upgrade" (link to /pricing), or **"Downgrade"** (amber button) based on tier rank comparison
+- **Downgrade confirmation modal**: shows current plan → new plan flow, "unused time will be credited" notice, member limit warning with new plan's max, inline `MEMBER_LIMIT_EXCEEDED` error (modal stays open with red box explaining N members vs M allowed)
+- **Downgrade success banner**: "Downgraded to {planName}. Credit applied." in green, dismissible
+- State: `selectedPlan`, `showDowngradeModal`, `downgrading`, `downgradeSuccess`, `memberLimitError`, `billingInterval`
+
+**Error handling:**
+- `MEMBER_LIMIT_EXCEEDED` 400: modal stays open, shows "You have N members, new plan allows M. Remove members first."
+- Other errors: modal closes, `actionError` banner shown
+
+**TypeScript:** 0 errors (tsc --noEmit exits 0).
+
+
+## US-025: Subscription Cancellation Frontend — 2026-03-30
+
+**Requested by:** jayanth.jagadish
+
+### Changes Made
+- **packages/web/src/services/api.ts**: Fixed cancelSubscription() endpoint to POST /subscriptions/cancel and eactivateSubscription() to POST /subscriptions/reactivate (were using /subscriptions/me/* variants).
+- **packages/web/src/pages/SubscriptionPage.tsx**: Updated post-cancel banner to show "Subscription cancelled. Access until {date}." with a "Reactivate" button (spec-compliant wording).
+- **packages/web/src/pages/dashboard.tsx** (DashboardOverviewCard): When cancelAtPeriodEnd = true, overview card now displays "Cancels on {date}" (yellow text) instead of "Renews in X days".
+
+### TypeScript
+- 	sc --noEmit exits 0 — no type errors.
+
+## US-026: Billing History Frontend — 2026-03-31
+
+**Requested by:** jayanth.jagadish
+
+### Changes Made
+
+- **packages/web/src/types/api.ts**: Added `Invoice` interface `{ id, date, amount, currency, status: 'paid'|'pending'|'failed', planName, invoicePdfUrl }`.
+- **packages/web/src/services/api.ts**: Added `getInvoices()` method calling GET /subscriptions/invoices; returns `ApiResponse<{ invoices: Invoice[], hasMore: boolean }>`. Imported `Invoice` type.
+- **packages/web/src/pages/BillingHistoryPage.tsx**: Created new page with:
+  - Invoice table: Date | Plan | Amount | Status | Download columns
+  - Color-coded `StatusBadge` (green=paid, yellow=pending, red=failed)
+  - Download button opens Stripe PDF URL in new tab; shows "—" when null
+  - Empty state: "No invoices yet" with icon for free plan users
+  - "Load more" button when `hasMore: true` (page-based accumulation via `useState`)
+  - Loading skeleton (5 skeleton rows) while fetching first page; inline "Loading more…" for subsequent pages
+  - Currency formatted with `Intl.NumberFormat` (amount in cents ÷ 100)
+  - React Query v5 object-form `useQuery({ queryKey, queryFn })`
+- **packages/web/src/App.tsx**: Added import for `BillingHistoryPage`; added route `/billing` with `<ProtectedRoute>`.
+- **packages/web/src/components/Layout.tsx**: Added "Billing" nav link for authenticated users (between Profile and Logout).
+
+### TypeScript
+- `tsc --noEmit` exits 0 — no type errors.

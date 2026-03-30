@@ -6,9 +6,36 @@ interface CancelResponse {
   days_remaining: number;
 }
 
+interface Plan {
+  id: string;
+  name: string;
+  tier: string;
+  price_monthly?: number | null;
+  price_annual?: number | null;
+  priceMonthly?: number | null;
+  priceYearly?: number | null;
+  max_members?: number | null;
+  features?: any;
+}
+
+const TIER_ORDER: Record<string, number> = { free: 0, pro: 1, enterprise: 2 };
+
+function getTierRank(tier: string): number {
+  return TIER_ORDER[tier?.toLowerCase()] ?? 0;
+}
+
+function deriveTier(planName: string | undefined): string {
+  const name = (planName ?? '').toLowerCase();
+  if (name.includes('enterprise')) return 'enterprise';
+  if (name.includes('pro')) return 'pro';
+  return 'free';
+}
+
 export default function SubscriptionPage() {
   const [sub, setSub] = useState<any | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -16,14 +43,25 @@ export default function SubscriptionPage() {
   const [cancelling, setCancelling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [reactivateSuccess, setReactivateSuccess] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [downgrading, setDowngrading] = useState(false);
+  const [downgradeSuccess, setDowngradeSuccess] = useState<string | null>(null);
+  const [memberLimitError, setMemberLimitError] = useState<string | null>(null);
+
+  const fetchSubscription = async () => {
+    const s = await api.getSubscription();
+    setSub(s.data || null);
+  };
 
   useEffect(() => {
     (async () => {
       try {
-        const s = await api.getSubscription();
-        setSub(s.data || null);
+        await fetchSubscription();
         const p = await api.getPayments();
         setPayments(p.data || []);
+        const pl = await api.getPlans();
+        setPlans(pl.data || []);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load subscription';
         setError(message);
@@ -40,9 +78,7 @@ export default function SubscriptionPage() {
       const response = await api.cancelSubscription();
       setCancelInfo(response.data ?? null);
       setShowCancelModal(false);
-      // Reload subscription data
-      const s = await api.getSubscription();
-      setSub(s.data || null);
+      await fetchSubscription();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to cancel subscription';
       setActionError(message);
@@ -58,13 +94,45 @@ export default function SubscriptionPage() {
     try {
       await api.reactivateSubscription();
       setReactivateSuccess(true);
-      // Reload subscription data
-      const s = await api.getSubscription();
-      setSub(s.data || null);
+      await fetchSubscription();
       setCancelInfo(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to reactivate subscription';
       setActionError(message);
+    }
+  };
+
+  const handleDowngradeClick = (plan: Plan) => {
+    setSelectedPlan(plan);
+    setMemberLimitError(null);
+    setShowDowngradeModal(true);
+  };
+
+  const handleDowngrade = async () => {
+    if (!selectedPlan) return;
+    setDowngrading(true);
+    setMemberLimitError(null);
+    setActionError(null);
+    try {
+      await api.downgradeSubscription(selectedPlan.id, billingInterval);
+      setShowDowngradeModal(false);
+      setDowngradeSuccess(`Downgraded to ${selectedPlan.name}. Credit applied.`);
+      await fetchSubscription();
+    } catch (err: any) {
+      const errorCode = err?.response?.data?.error?.code;
+      if (errorCode === 'MEMBER_LIMIT_EXCEEDED') {
+        const currentMembers = err?.response?.data?.error?.current_members;
+        const maxAllowed = err?.response?.data?.error?.max_members ?? selectedPlan.max_members;
+        setMemberLimitError(
+          `You have ${currentMembers} members, new plan allows ${maxAllowed}. Remove members first.`
+        );
+      } else {
+        const message = err instanceof Error ? err.message : 'Failed to downgrade subscription';
+        setActionError(message);
+        setShowDowngradeModal(false);
+      }
+    } finally {
+      setDowngrading(false);
     }
   };
 
@@ -80,12 +148,14 @@ export default function SubscriptionPage() {
     : null;
 
   const planName = sub?.plan_name || sub?.plan?.name || 'Free';
+  const currentTier = sub?.plan?.tier || deriveTier(planName);
+  const currentTierRank = getTierRank(currentTier);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Subscription</h1>
 
-      {/* Success Banner */}
+      {/* Reactivate Success Banner */}
       {reactivateSuccess && (
         <div className="mb-4 p-4 bg-green-50 border border-green-400 rounded flex items-start gap-2">
           <svg className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -93,12 +163,20 @@ export default function SubscriptionPage() {
           </svg>
           <div className="flex-1">
             <p className="text-sm font-medium text-green-900">Subscription reactivated successfully!</p>
-            <button
-              onClick={() => setReactivateSuccess(false)}
-              className="mt-1 text-xs text-green-700 underline"
-            >
-              Dismiss
-            </button>
+            <button onClick={() => setReactivateSuccess(false)} className="mt-1 text-xs text-green-700 underline">Dismiss</button>
+          </div>
+        </div>
+      )}
+
+      {/* Downgrade Success Banner */}
+      {downgradeSuccess && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-400 rounded flex items-start gap-2">
+          <svg className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-green-900">{downgradeSuccess}</p>
+            <button onClick={() => setDowngradeSuccess(null)} className="mt-1 text-xs text-green-700 underline">Dismiss</button>
           </div>
         </div>
       )}
@@ -111,37 +189,23 @@ export default function SubscriptionPage() {
           </svg>
           <div className="flex-1">
             <p className="text-sm font-medium text-red-900">{actionError}</p>
-            <button
-              onClick={() => setActionError(null)}
-              className="mt-1 text-xs text-red-700 underline"
-            >
-              Dismiss
-            </button>
+            <button onClick={() => setActionError(null)} className="mt-1 text-xs text-red-700 underline">Dismiss</button>
           </div>
         </div>
       )}
 
+      {/* Cancellation Warning Banner */}
       {cancelInfo && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-400 rounded">
           <div className="flex items-start">
-            <svg
-              className="h-5 w-5 text-yellow-600 mt-0.5 mr-2"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
+            <svg className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             <div className="flex-1">
               <h3 className="font-medium text-yellow-900">Subscription Cancelling</h3>
               <p className="text-sm text-yellow-800 mt-1">
                 Your subscription will end on{' '}
-                <span className="font-semibold">
-                  {new Date(cancelInfo.end_date).toLocaleDateString()}
-                </span>
+                <span className="font-semibold">{new Date(cancelInfo.end_date).toLocaleDateString()}</span>
                 . You have <span className="font-semibold">{cancelInfo.days_remaining} days</span> remaining.
               </p>
               <button
@@ -155,6 +219,7 @@ export default function SubscriptionPage() {
         </div>
       )}
 
+      {/* Current Subscription Card */}
       {sub ? (
         <div className="p-4 bg-white border rounded">
           <div className="flex items-center justify-between">
@@ -165,7 +230,6 @@ export default function SubscriptionPage() {
               </div>
             </div>
             <div className="space-x-2">
-              <a href="/pricing?action=upgrade" className="px-3 py-2 bg-sky-600 text-white rounded">Upgrade/Downgrade</a>
               {!cancelInfo && (
                 <button
                   onClick={() => setShowCancelModal(true)}
@@ -197,24 +261,84 @@ export default function SubscriptionPage() {
         <div className="p-4 bg-white border rounded">No active subscription.</div>
       )}
 
+      {/* Plan Comparison */}
+      {sub && plans.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Change Plan</h2>
+            <div className="flex items-center bg-gray-100 rounded-full p-1 text-sm">
+              <button
+                onClick={() => setBillingInterval('monthly')}
+                className={`px-3 py-1 rounded-full transition-colors ${billingInterval === 'monthly' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingInterval('annual')}
+                className={`px-3 py-1 rounded-full transition-colors ${billingInterval === 'annual' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+              >
+                Annual
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {plans.map((plan) => {
+              const planTierRank = getTierRank(plan.tier || deriveTier(plan.name));
+              const isCurrent = planTierRank === currentTierRank;
+              const isDowngrade = planTierRank < currentTierRank;
+              const price = billingInterval === 'annual'
+                ? (plan.price_annual ?? plan.priceYearly ?? 0)
+                : (plan.price_monthly ?? plan.priceMonthly ?? 0);
+              const maxMembers = plan.max_members ?? plan.features?.teamMembers ?? null;
+
+              return (
+                <div
+                  key={plan.id}
+                  className={`p-4 border rounded-lg ${isCurrent ? 'border-sky-500 bg-sky-50' : 'border-gray-200 bg-white'}`}
+                >
+                  <div className="font-semibold text-gray-900">{plan.name}</div>
+                  <div className="text-2xl font-bold mt-1">
+                    {price === 0 ? 'Free' : `$${price}`}
+                    {price > 0 && <span className="text-sm font-normal text-gray-500">/{billingInterval === 'annual' ? 'yr' : 'mo'}</span>}
+                  </div>
+                  {maxMembers !== null && (
+                    <div className="text-xs text-gray-500 mt-1">Up to {maxMembers} members</div>
+                  )}
+                  <div className="mt-4">
+                    {isCurrent ? (
+                      <span className="inline-block px-3 py-1.5 text-sm bg-sky-100 text-sky-700 rounded font-medium">Current Plan</span>
+                    ) : isDowngrade ? (
+                      <button
+                        onClick={() => handleDowngradeClick(plan)}
+                        className="w-full px-3 py-1.5 text-sm bg-amber-500 text-white rounded hover:bg-amber-600 font-medium"
+                      >
+                        Downgrade
+                      </button>
+                    ) : (
+                      <a
+                        href={`/pricing?action=upgrade&plan=${plan.id}&interval=${billingInterval}`}
+                        className="block text-center px-3 py-1.5 text-sm bg-sky-600 text-white rounded hover:bg-sky-700 font-medium"
+                      >
+                        Upgrade
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Cancel Confirmation Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <svg
-                  className="h-6 w-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
+                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
               <div className="ml-3 flex-1">
@@ -250,6 +374,64 @@ export default function SubscriptionPage() {
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
               >
                 {cancelling ? 'Cancelling...' : 'Yes, Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Downgrade Confirmation Modal */}
+      {showDowngradeModal && selectedPlan && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-lg font-medium text-gray-900">Downgrade Subscription</h3>
+                <div className="mt-3 space-y-3 text-sm text-gray-600">
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-0.5 bg-sky-100 text-sky-800 rounded font-medium">{planName}</span>
+                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded font-medium">{selectedPlan.name}</span>
+                  </div>
+                  <p className="text-green-700 font-medium">
+                    ✓ Unused time will be credited to your account.
+                  </p>
+                  {(selectedPlan.max_members ?? selectedPlan.features?.teamMembers) !== null && (
+                    <p className="text-amber-700">
+                      ⚠ The {selectedPlan.name} plan allows up to{' '}
+                      <strong>{selectedPlan.max_members ?? selectedPlan.features?.teamMembers}</strong> members.
+                      Ensure your team is within this limit before downgrading.
+                    </p>
+                  )}
+                  {memberLimitError && (
+                    <div className="p-3 bg-red-50 border border-red-300 rounded text-red-700">
+                      {memberLimitError}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end space-x-3">
+              <button
+                onClick={() => { setShowDowngradeModal(false); setMemberLimitError(null); }}
+                disabled={downgrading}
+                className="px-4 py-2 bg-gray-200 text-gray-900 rounded hover:bg-gray-300 disabled:opacity-50"
+              >
+                Keep Current Plan
+              </button>
+              <button
+                onClick={handleDowngrade}
+                disabled={downgrading}
+                className="px-4 py-2 bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50"
+              >
+                {downgrading ? 'Downgrading...' : `Downgrade to ${selectedPlan.name}`}
               </button>
             </div>
           </div>

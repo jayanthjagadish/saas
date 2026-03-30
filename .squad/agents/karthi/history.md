@@ -467,3 +467,45 @@ ame field already existed.
 
 **Patterns used:** authMiddleware from middleware/auth.js, { success, data } response shape, zod validation, sendVerificationEmail for email change flow.
 
+
+## US-026 — Billing History & Invoice Backend
+**Date:** 2026-03-30
+**File changed:** packages/api/src/routes/subscriptions.ts
+
+### What was done
+- Added GET /subscriptions/invoices endpoint (auth required).
+  - If user has stripeCustomerId: fetches up to 20 invoices from Stripe and maps to { id, date, amount, currency, status, planName, invoicePdfUrl }.
+  - If user has no Stripe customer and key is live: returns empty array.
+  - If Stripe key is test/mock and no customer: returns 3 sample MOCK_INVOICES so frontend dev works without real Stripe.
+  - Response shape: { success: true, data: { invoices: [...], hasMore: bool } }.
+- Added GET /subscriptions/invoices/:invoiceId/download endpoint (auth required).
+  - Fetches invoice from Stripe and returns { success: true, data: { pdfUrl } }.
+  - Returns the Stripe-hosted PDF URL (no PDF proxying).
+  - Mock invoice IDs (in_mock_*) are handled when running with a test/mock key.
+- Added isTestOrMockStripeKey() helper: returns true when key is absent, starts with sk_test_, sk_mock_, or is not a live key.
+- Added MOCK_INVOICES constant (3 sample invoices) for local dev/test environments.
+- TypeScript check passed with zero errors.
+
+### US-025: Subscription Cancellation Backend (2026-03-30)
+**Requestor:** jayanth.jagadish
+
+**Implemented:**
+- POST /subscriptions/cancel — Auth required. Calls stripe.subscriptions.update({ cancel_at_period_end: true }), sets local status → cancelled, cancelAtPeriodEnd = true, cancelledAt = now. Writes dev-emails/cancel-{email}-{timestamp}.txt. Returns { success: true, data: { accessUntil, message } }.
+- POST /subscriptions/reactivate — Auth required. Checks cancelAtPeriodEnd and period not ended. Calls stripe with cancel_at_period_end: false. Restores status → ctive, clears cancelledAt. Returns { success: true }.
+
+**Model changes:**
+- Added cancelled to SubscriptionStatus enum (alongside existing canceled)
+- Added cancelledAt?: Date | null field to Subscription model (DB column: cancelled_at)
+
+**Service additions:**
+- cancelSubscriptionV2 and eactivateSubscriptionV2 in services/subscription.ts
+- sendCancelEmail in services/email.ts (filename: cancel-{email}-{timestamp}.txt)
+
+**TSC:** Passes --noEmit clean.
+
+**Note:** Kept existing /me/cancel and /me/reactivate routes intact for backward compatibility. New routes are at /cancel and /reactivate (no /me/ prefix).
+
+---
+
+## US-023: Downgrade Subscription (2025-07-10)
+Added POST /subscriptions/downgrade. Member limit check via TeamMember. Stripe update with credit_unused (cast as any for v14). Dev email via sendDowngradeEmail(). Decisions in .squad/decisions/inbox/karthi-downgrade.md

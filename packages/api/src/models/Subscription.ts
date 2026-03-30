@@ -3,7 +3,7 @@ import sequelize from '../config/database.js';
 import { User } from './User.js';
 import Plan from './Plan.js';
 
-export type SubscriptionStatus = 'active' | 'pending' | 'past_due' | 'canceled' | 'unpaid' | 'cancellation_pending';
+export type SubscriptionStatus = 'active' | 'pending' | 'past_due' | 'canceled' | 'cancelled' | 'unpaid' | 'cancellation_pending';
 
 export interface ISubscription {
   id: string;
@@ -16,6 +16,7 @@ export interface ISubscription {
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
+  cancelledAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +32,7 @@ export class Subscription extends Model<ISubscription> implements ISubscription 
   declare currentPeriodStart?: Date | null;
   declare currentPeriodEnd?: Date | null;
   declare cancelAtPeriodEnd?: boolean;
+  declare cancelledAt?: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -66,7 +68,7 @@ Subscription.init(
       field: 'stripe_customer_id',
     },
     status: {
-      type: DataTypes.ENUM('active', 'pending', 'past_due', 'canceled', 'unpaid', 'cancellation_pending'),
+      type: DataTypes.ENUM('active', 'pending', 'past_due', 'canceled', 'cancelled', 'unpaid', 'cancellation_pending'),
       defaultValue: 'pending',
     },
     pricePerMonth: {
@@ -88,6 +90,11 @@ Subscription.init(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
       field: 'cancel_at_period_end',
+    },
+    cancelledAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'cancelled_at',
     },
     createdAt: {
       type: DataTypes.DATE,

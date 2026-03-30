@@ -1,12 +1,52 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { stripe } from '../services/stripe.js';
-import { cancelSubscription, reactivateSubscription } from '../services/subscription.js';
+import { cancelSubscription, reactivateSubscription, cancelSubscriptionV2, reactivateSubscriptionV2 } from '../services/subscription.js';
 import User from '../models/User.js';
 import Plan from '../models/Plan.js';
 import Subscription from '../models/Subscription.js';
+import Team from '../models/Team.js';
+import TeamMember from '../models/TeamMember.js';
+import { sendDowngradeEmail } from '../services/email.js';
+import { config } from '../config/index.js';
 
 const router = Router();
+
+/** Returns true when we're running with a test/mock Stripe key (not live). */
+function isTestOrMockStripeKey(): boolean {
+  const key = config.stripe.secretKey;
+  return !key || key.startsWith('sk_test_') || key.startsWith('sk_mock_') || !key.startsWith('sk_live_');
+}
+
+const MOCK_INVOICES = [
+  {
+    id: 'in_mock_001',
+    date: new Date('2024-03-01').getTime() / 1000,
+    amount: 2900,
+    currency: 'usd',
+    status: 'paid',
+    planName: 'Pro',
+    invoicePdfUrl: 'https://invoice.stripe.com/mock/in_mock_001.pdf',
+  },
+  {
+    id: 'in_mock_002',
+    date: new Date('2024-02-01').getTime() / 1000,
+    amount: 2900,
+    currency: 'usd',
+    status: 'paid',
+    planName: 'Pro',
+    invoicePdfUrl: 'https://invoice.stripe.com/mock/in_mock_002.pdf',
+  },
+  {
+    id: 'in_mock_003',
+    date: new Date('2024-01-01').getTime() / 1000,
+    amount: 2900,
+    currency: 'usd',
+    status: 'paid',
+    planName: 'Pro',
+    invoicePdfUrl: 'https://invoice.stripe.com/mock/in_mock_003.pdf',
+  },
+];
 
 // Priority order for picking the "best" subscription to surface
 const STATUS_PRIORITY: Record<string, number> = {
@@ -196,6 +236,232 @@ router.post('/me/reactivate', authMiddleware, async (req: AuthRequest, res: Resp
     }
     
     res.status(500).json({ error: 'REACTIVATION_FAILED', message: 'Failed to reactivate subscription' });
+  }
+});
+
+// US-025: Cancel subscription (access continues until period end)
+router.post('/cancel', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { accessUntil } = await cancelSubscriptionV2(userInfo.id);
+    const accessUntilISO = accessUntil.toISOString();
+    const dateLabel = accessUntilISO.split('T')[0];
+
+    res.json({
+      success: true,
+      data: {
+        accessUntil: accessUntilISO,
+        message: `Access continues until ${dateLabel}`,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error cancelling subscription (US-025):', err);
+
+    if (err.code === 'NO_ACTIVE_SUBSCRIPTION') {
+      res.status(404).json({ error: err.code, message: err.message });
+      return;
+    }
+
+    if (err.code === 'INVALID_SUBSCRIPTION') {
+      res.status(400).json({ error: err.code, message: err.message });
+      return;
+    }
+
+    res.status(500).json({ error: 'CANCELLATION_FAILED', message: 'Failed to cancel subscription' });
+  }
+});
+
+// US-025: Reactivate subscription (undo cancel_at_period_end)
+router.post('/reactivate', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    await reactivateSubscriptionV2(userInfo.id);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Error reactivating subscription (US-025):', err);
+
+    if (err.code === 'NO_PENDING_CANCELLATION') {
+      res.status(404).json({ error: err.code, message: err.message });
+      return;
+    }
+
+    if (err.code === 'INVALID_SUBSCRIPTION' || err.code === 'PERIOD_ENDED') {
+      res.status(400).json({ error: err.code, message: err.message });
+      return;
+    }
+
+    res.status(500).json({ error: 'REACTIVATION_FAILED', message: 'Failed to reactivate subscription' });
+  }
+});
+
+// GET /subscriptions/invoices — list billing history
+router.get('/invoices', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const user = await User.findByPk(userInfo.id);
+    if (!user) return res.status(404).json({ error: 'USER_NOT_FOUND' });
+
+    // No Stripe customer → free plan, return empty list (or mock if test key)
+    if (!user.stripeCustomerId) {
+      if (isTestOrMockStripeKey()) {
+        return res.json({
+          success: true,
+          data: { invoices: MOCK_INVOICES, hasMore: false },
+        });
+      }
+      return res.json({ success: true, data: { invoices: [], hasMore: false } });
+    }
+
+    const stripeInvoices = await stripe.invoices.list({
+      customer: user.stripeCustomerId,
+      limit: 20,
+    });
+
+    const invoices = stripeInvoices.data.map((inv) => ({
+      id: inv.id,
+      date: inv.created,
+      amount: inv.amount_paid ?? inv.total ?? 0,
+      currency: inv.currency,
+      status: inv.status ?? 'unknown',
+      planName: (inv.lines?.data?.[0]?.description ?? inv.metadata?.plan_name ?? null),
+      invoicePdfUrl: inv.invoice_pdf ?? null,
+    }));
+
+    res.json({
+      success: true,
+      data: { invoices, hasMore: stripeInvoices.has_more },
+    });
+  } catch (err) {
+    console.error('Error fetching invoices:', err);
+    res.status(500).json({ error: 'INVOICE_FETCH_FAILED' });
+  }
+});
+
+// GET /subscriptions/invoices/:invoiceId/download — get PDF URL for a single invoice
+router.get('/invoices/:invoiceId/download', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { invoiceId } = req.params;
+
+    // Return mock PDF URL for mock invoice IDs when using test/mock key
+    if (isTestOrMockStripeKey() && invoiceId.startsWith('in_mock_')) {
+      const mock = MOCK_INVOICES.find((m) => m.id === invoiceId);
+      if (!mock) return res.status(404).json({ error: 'INVOICE_NOT_FOUND' });
+      return res.json({ success: true, data: { pdfUrl: mock.invoicePdfUrl } });
+    }
+
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+
+    if (!invoice.invoice_pdf) {
+      return res.status(404).json({ error: 'PDF_NOT_AVAILABLE' });
+    }
+
+    res.json({ success: true, data: { pdfUrl: invoice.invoice_pdf } });
+  } catch (err: any) {
+    if (err?.statusCode === 404 || err?.code === 'resource_missing') {
+      return res.status(404).json({ error: 'INVOICE_NOT_FOUND' });
+    }
+    console.error('Error fetching invoice PDF:', err);
+    res.status(500).json({ error: 'INVOICE_FETCH_FAILED' });
+  }
+});
+
+// US-023: Downgrade subscription
+router.post('/downgrade', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user;
+    if (!userInfo) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { planId, billingInterval } = req.body as { planId: string; billingInterval: 'monthly' | 'annual' };
+
+    if (!planId || !['monthly', 'annual'].includes(billingInterval)) {
+      return res.status(400).json({ success: false, error: 'INVALID_INPUT' });
+    }
+
+    const newPlan = await Plan.findByPk(planId);
+    if (!newPlan) return res.status(404).json({ success: false, error: 'PLAN_NOT_FOUND' });
+
+    const subscription = await Subscription.findOne({
+      where: { userId: userInfo.id, status: ['active', 'cancellation_pending'] as any },
+      order: [['createdAt', 'DESC']],
+    });
+    if (!subscription) return res.status(404).json({ success: false, error: 'NO_ACTIVE_SUBSCRIPTION' });
+
+    // Member limit check: count members in the user's owned team
+    if (newPlan.max_members !== null && newPlan.max_members !== undefined) {
+      const team = await Team.findOne({ where: { ownerId: userInfo.id } });
+      if (team) {
+        const memberCount = await TeamMember.count({ where: { teamId: team.id } });
+        if (memberCount > newPlan.max_members) {
+          return res.status(400).json({
+            success: false,
+            error: 'MEMBER_LIMIT_EXCEEDED',
+            currentMembers: memberCount,
+            newLimit: newPlan.max_members,
+          });
+        }
+      }
+    }
+
+    // Call Stripe if this subscription is managed via Stripe
+    let creditApplied = 0;
+    let effectiveDate = new Date();
+
+    if (subscription.stripeSubscriptionId) {
+      const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+      const existingItem = stripeSub.items.data[0];
+
+      const updatedStripeSub = await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+        items: [{ id: existingItem.id, price: existingItem.price.id }],
+        proration_behavior: 'credit_unused' as any,
+        metadata: { plan_id: newPlan.id, billing_interval: billingInterval },
+      });
+
+      effectiveDate = new Date(updatedStripeSub.current_period_end * 1000);
+    }
+
+    const newPrice =
+      billingInterval === 'annual'
+        ? Number(newPlan.price_annual ?? newPlan.price_monthly ?? 0)
+        : Number(newPlan.price_monthly ?? 0);
+
+    const newPricePerMonth =
+      billingInterval === 'annual'
+        ? Number(newPlan.price_annual ?? 0) / 12
+        : Number(newPlan.price_monthly ?? 0);
+
+    await subscription.update({
+      planId: newPlan.id,
+      status: 'active',
+      pricePerMonth: newPricePerMonth,
+    } as any);
+
+    const user = await User.findByPk(userInfo.id);
+    if (user) {
+      await sendDowngradeEmail(user.email, newPlan.name, newPrice, billingInterval, effectiveDate);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        planName: newPlan.name,
+        newPrice,
+        effectiveDate: effectiveDate.toISOString(),
+        creditApplied,
+      },
+    });
+  } catch (err) {
+    console.error('Error downgrading subscription:', err);
+    res.status(500).json({ success: false, error: 'DOWNGRADE_FAILED' });
   }
 });
 

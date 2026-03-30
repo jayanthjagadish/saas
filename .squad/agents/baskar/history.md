@@ -638,3 +638,64 @@ Wrote API integration and E2E tests for the profile management feature (US-005),
 
 ### Status
 Tests compile clean (tsc --noEmit passes). Ready to run once Karthi's /users/me endpoints and Senthil's /profile page are deployed.
+
+---
+
+## 2026-03-30 - US-026: Billing History Tests
+
+### Task
+Wrote API and E2E tests for billing history endpoints (US-026), as pair agent alongside Karthi (backend) and Senthil (frontend).
+
+### Files Created
+1. `tests/api/billing-history.test.ts` — Jest API contract tests
+2. `tests/e2e/billing.spec.ts` — Playwright E2E tests
+
+### Test Coverage
+
+#### API Tests (`tests/api/billing-history.test.ts`)
+- `GET /subscriptions/invoices` returns 401 without auth token
+- `GET /subscriptions/invoices` returns 200 + array for authenticated user (empty array valid for free plan)
+- Invoice objects shape validated: id, date, amount, status, planName
+- `GET /subscriptions/invoices/:id/download` returns 401 without auth
+- `GET /subscriptions/invoices/:id/download` returns 404 for non-existent id
+- `GET /subscriptions/invoices/:id/download` returns 200 with pdfUrl for valid id (skipped gracefully when no invoices)
+
+#### E2E Tests (`tests/e2e/billing.spec.ts`)
+- `/billing` redirects to `/login` when unauthenticated
+- Billing page loads and shows invoice table OR empty state (both valid)
+- Download button is present on paid invoice rows; gracefully skips for free-plan users with no invoices
+
+### Patterns Followed
+- Mirrored `tests/api/profile.test.ts`: `beforeAll` login via `/auth/login`, Bearer token on requests
+- Mirrored `tests/e2e/profile.spec.ts`: `beforeEach` login via `/login` page, `waitForURL('**/dashboard')`
+- Graceful fallbacks for free-plan users with no invoices (conditional assertions instead of hard failures)
+
+### Status
+Tests compile-ready. Awaiting Karthi's `/subscriptions/invoices` and `/subscriptions/invoices/:id/download` endpoints and Senthil's `/billing` frontend page to run end-to-end.
+
+
+## 2026-03-30 - US-023: Downgrade Subscription Tests (Pair Agent)
+
+### Task
+Wrote downgrade subscription tests in parallel with Karthi (backend) and Senthil (frontend) building the feature.
+
+### Work Completed
+1. **API Tests** (	ests/api/downgrade.test.ts):
+   - POST /subscriptions/downgrade — 401 without auth token
+   - POST /subscriptions/downgrade — 400 MEMBER_LIMIT_EXCEEDED when team too large for new plan
+   - POST /subscriptions/downgrade — 200 happy path asserts { planName, newPrice, effectiveDate, creditApplied }
+   - POST /subscriptions/downgrade — rejects invalid planId (400/404/422)
+   - POST /subscriptions/downgrade — rejects missing planId body field
+
+2. **E2E Tests** (added Downgrade Flow describe block to 	ests/e2e/subscription-flows.spec.ts):
+   - Downgrade button visible when a lower plan is selected
+   - Confirmation modal appears after clicking downgrade
+   - Member limit warning shown when team exceeds new plan limit
+
+### Patterns Used
+- Followed 	ests/api/profile.test.ts: eforeAll login fetch, Authorization: Bearer header, data?.data?.accessToken extraction
+- Followed 	ests/e2e/team.spec.ts: eforeEach login, graceful isVisible() guards, 	est.skip for undeployed features
+- Resilient assertions: 200/400/404/409 branches for pre-feature gate environments
+
+### Status
+TypeScript compiles clean (	sc --noEmit passes). Tests ready to run against live server once Karthi's /subscriptions/downgrade endpoint and Senthil's billing UI are deployed.
