@@ -1630,3 +1630,19 @@ Both test files are now:
 
 **Questions?** Ping @baskar in `.squad/decisions.md`
 
+
+
+---
+
+## Decision (2026-03-30): All agents are polyglot and language-agnostic
+
+**Status:** Approved
+**Owner:** Jayanth
+**Date:** 2026-03-30
+
+- All agents operate across any language or framework the project uses
+- Tech-stack specifics are context, not identity
+- Each charter updated to reflect polyglot nature
+- Rationale: Ensures agents can work on any project, prevents silos
+
+**Affected agents:** Senthil, Karthi, Baskar, Jayanth, Basher, Auxi, Scribe, Ralph
