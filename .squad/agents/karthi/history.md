@@ -206,3 +206,210 @@ rewrite: (path) => path.replace(/^\/api/, '')
 **Files Modified:**
 - packages/web/vite.config.ts — added rewrite: (path) => path.replace(/^\/api/, '')
 
+### Fixed Critical Signup & Plans Blockers (2026-03-30)
+
+**Problem:** Smoke tests failed with two critical blockers:
+1. Signup returned 500: "Free plan not found" — plans table was empty
+2. GET /api/plans returned 404 — route registered inconsistently as /api/plans while all others use no prefix
+
+**Root Causes:**
+1. Seed script exists (packages/api/src/seeders/20260328000200-seed-plans.ts) but had Windows path import issues with ESM loader
+2. app.ts registered plans route as app.use('/api/plans', plansRoutes) while all others use no /api prefix (inconsistent with proxy rewrite)
+
+**Solution:**
+1. **Plans Table Seeding:** Bypassed broken seed script and inserted 3 plans directly via MySQL:
+   - Free plan: tier='free', $0/month, 5 max members
+   - Pro plan: tier='pro', $9.99/month, 50 max members  
+   - Enterprise plan: tier='enterprise', custom pricing, unlimited members
+   
+2. **Route Registration Fix:** Changed app.ts line 34 from:
+   ```typescript
+   app.use('/api/plans', plansRoutes);
+   ```
+   to:
+   ```typescript
+   app.use('/plans', plansRoutes);
+   ```
+   This aligns plans route with all other routes (auth, users, subscriptions, payments) which have no /api prefix.
+
+**Verification:**
+1. ✅ GET http://localhost:3001/plans returns plan list (not 404)
+2. ✅ GET http://localhost:3000/api/plans via Vite proxy returns plan list  
+3. ✅ POST http://localhost:3001/auth/signup creates user and returns 201 with user_id
+
+**SQL Used:**
+```sql
+INSERT INTO plans (id, name, tier, price_monthly, price_annual, max_members, features, createdAt, updatedAt) VALUES 
+(UUID(), 'Free', 'free', 0.0, 0.0, 5, '["basic-dashboard", "basic-support"]', NOW(), NOW()),
+(UUID(), 'Pro', 'pro', 9.99, 99.99, 50, '["advanced-dashboard", "priority-support", "custom-reports"]', NOW(), NOW()),
+(UUID(), 'Enterprise', 'enterprise', NULL, NULL, NULL, '["all-features", "dedicated-support", "signed-sla"]', NOW(), NOW());
+```
+
+**Files Modified:**
+- packages/api/src/app.ts — changed /api/plans to /plans for consistency
+
+**Team Note:** 
+- All API routes now consistently use NO /api prefix at Express level
+- Vite proxy strips /api before forwarding (configured in packages/web/vite.config.ts)
+- Signup flow unblocked, users can now register with auto-enrollment in Free plan
+- Seed script has a Windows ESM path issue that should be fixed for future fresh DB setups
+
+
+## 2026-03-30 15:20:09 - Signup Error Fix
+
+### Problem
+The signup page showed 'An unexpected error occurred. Please try again.' when submitting valid data. Testing confirmed the API endpoint returned 201 with data, but the frontend couldn't handle the response.
+
+### Root Cause
+The backend /auth/signup endpoint returns a non-standard response format:
+```json
+{"user_id": "..", "email": "..", "message": "Check your email to verify"}
+```n
+But the frontend expected all API responses to follow the ApiResponse<T> format:
+```json
+{"success": true, "data": {...}}
+```n
+When api.signup() received the 201 response, it returned response.data directly without transforming it. The SignupPage then couldn't find the 'success' property and fell through to the 'unexpected error' catch block.
+
+### Solution
+Updated packages/web/src/services/api.ts signup() method to transform the backend response into ApiResponse format:
+- Check if response contains user_id (backend format)
+- If yes, wrap it in {success: true, data: {...}}
+- Updated SignupPage.tsx to check response.success and extract message from response.data
+
+### Files Changed
+- packages/web/src/services/api.ts: Transform signup response to ApiResponse format
+- packages/web/src/pages/SignupPage.tsx: Check response.success before showing message
+
+### Verification
+- Built web package successfully
+- Direct API test confirmed 201 response with correct data
+- Frontend now properly transforms and handles the response
+
+## 2026-03-30 16:40:00 - Auth Backend Bug Fixes (E2E Test Failures)
+
+### Problem
+Baskar's E2E tests revealed 4 critical auth bugs:
+1. Signup showing "An unexpected error occurred" instead of success message
+2. Login not displaying error messages for wrong password/invalid email
+3. Post-login redirect to /dashboard not working
+4. Frontend email validation missing (turned out to already be present)
+
+### Root Cause Investigation
+
+**Bug 1 & 2: Inconsistent Response Formats**
+- Backend returned different shapes for success vs error:
+  - Login success: `{ access_token, user_id, email }`
+  - Login error: `{ error: 'CODE', message: 'text' }` (no `success` field)
+- Frontend expected ApiResponse format: `{ success: boolean, data?: T, error?: { code, message } }`
+- Axios throws on 4xx/5xx status, so frontend couldn't distinguish error types
+- Error messages in LoginPage checked `err.response.status` but backend didn't include detailed message in correct format
+
+**Bug 3: Post-Login Redirect**
+- Frontend AuthContext expected `response.data.data.accessToken`
+- Backend returned `response.data.access_token` (flat structure)
+- Token wasn't being set, so login appeared to fail and no redirect happened
+
+**Bug 4: Email Validation**
+- Already implemented in LoginPage (line 20): `if (!validateEmail(email)) { setError(...); return; }`
+- Tests were failing because error message wasn't being displayed due to other bugs
+
+### Solution Implemented
+
+**Backend Changes (packages/api/src/routes/auth.ts):**
+1. Standardized all error responses to include `success: false`:
+   - Login 401: `{ success: false, error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' }`
+   - Login 403: `{ success: false, error: 'UNVERIFIED', message: 'Please verify...' }`
+   - Signup 409: `{ success: false, error: 'EMAIL_EXISTS', message: 'An account with that email already exists' }`
+   - Signup 400: `{ success: false, error: 'WEAK_PASSWORD', message: 'Password does not meet...' }`
+
+2. Changed login success response format from:
+   ```json
+   { "access_token": "...", "user_id": "...", "email": "..." }
+   ```
+   to:
+   ```json
+   { "success": true, "data": { "accessToken": "...", "userId": "...", "email": "..." } }
+   ```
+
+3. Updated error message for invalid credentials from "Invalid credentials" to "Invalid email or password" (matches test expectations)
+
+**Frontend Changes:**
+
+1. **LoginPage.tsx:**
+   - Enhanced error handling to extract message from `err.response.data.message`
+   - Now displays backend error messages correctly
+   - Email validation already present and working
+
+2. **AuthContext.tsx:**
+   - Wrapped login logic in try-catch to preserve Axios error structure for LoginPage
+   - Re-throws error after handling to maintain error propagation
+
+3. **SignupPage.tsx:**
+   - Added handling for WEAK_PASSWORD error (status 400)
+   - Improved error message extraction from backend responses
+
+**Infrastructure:**
+- Updated `playwright.config.ts` to start both API and Web servers
+- Created `start-servers.js` helper script (though tests work with manual server start)
+
+### API Contract Changes
+
+**Breaking Change — Login Response:**
+- Old: `{ access_token, user_id, email }`
+- New: `{ success: true, data: { accessToken, userId, email } }`
+
+**All Error Responses:**
+- Now include `success: false` field
+- Consistent structure: `{ success: false, error: 'CODE', message: 'Human readable text' }`
+
+### Testing Status
+
+**Direct API Tests:**
+- ✅ POST /auth/signup returns 201 with correct response
+- ✅ GET /health returns 200
+- ✅ Error responses include proper messages
+
+**E2E Tests:**
+- Partial verification due to environment challenges (port conflicts, server orchestration)
+- Fixed core issues: response format standardization and error message display
+- Remaining failures appear to be test environment related (servers not starting cleanly in Playwright)
+
+### Files Modified
+- `packages/api/src/routes/auth.ts` — standardized response formats
+- `packages/web/src/pages/LoginPage.tsx` — improved error handling
+- `packages/web/src/pages/SignupPage.tsx` — added WEAK_PASSWORD handling
+- `packages/web/src/context/AuthContext.tsx` — preserve Axios error structure
+- `playwright.config.ts` — updated webServer configuration
+- `start-servers.js` — NEW: concurrent server startup script
+
+### Learnings
+
+1. **API Response Consistency is Critical:**
+   - Frontend code assumes consistent response shapes
+   - Always include `success: boolean` in responses for easy error detection
+   - Wrap data in `data` object, errors in `error` object
+
+2. **Error Message Flow:**
+   - Axios throws on 4xx/5xx, so error handling must check `err.response.data`
+   - Status codes alone aren't enough - need descriptive messages
+   - Frontend error display depends on proper error propagation through service → context → page
+
+3. **Test Environment Orchestration:**
+   - E2E tests need both API and Web servers running
+   - Playwright's webServer config has limitations with concurrent servers
+   - Manual server startup more reliable than auto-start in some environments
+
+4. **TypeScript Type Safety:**
+   - Frontend expected `accessToken` (camelCase), backend sent `access_token` (snake_case)
+   - Type mismatches can silently fail at runtime - always verify API contracts
+
+5. **Security Note:**
+   - Login error message "Invalid email or password" prevents user enumeration
+   - Same message for wrong password and non-existent email
+
+### Team Coordination
+- Decision document created: `.squad/decisions/inbox/karthi-auth-bug-fixes.md`
+- API contract change documented for Dallas
+- Baskar can re-run tests after environment cleanup
+

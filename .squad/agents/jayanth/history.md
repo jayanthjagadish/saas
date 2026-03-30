@@ -32,3 +32,6 @@ This is a subscription-based SaaS with aesthetic UI. Focus on payment reliabilit
 - Frontend: `packages/web/` (Dallas)
 - Backend: `packages/api/` (Fenster)
 - Shared contracts: `packages/shared/src/types/`
+
+### Architecture Standards Adoption (2026-03-30)
+- Architecture patterns skill created. All agent charters updated with SOLID, Clean Architecture, Repository Pattern, 12-Factor. Skill at .squad/skills/architecture-patterns/SKILL.md

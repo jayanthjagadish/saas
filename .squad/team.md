@@ -16,6 +16,7 @@
 | Senthil | Frontend Dev | `.squad/agents/senthil/charter.md` | active |
 | Karthi | Backend Dev | `.squad/agents/karthi/charter.md` | active |
 | Auxi | Tester | `.squad/agents/auxi/charter.md` | active |
+| Baskar | Automation Tester | `.squad/agents/baskar/charter.md` | active |
 | Basher | Release Engineer | `.squad/agents/basher/charter.md` | active |
 | Ralph | Work Monitor | — | active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | active |
@@ -34,3 +35,10 @@
 - **URL:** https://github.com/jayanthjagadish/saas.git
 - **Connected:** 2026-03-30
 - **MCP:** github-mcp-server (preferred) — gh CLI fallback when available
+
+## PRD
+
+- **PRD File:** `PRD.md`
+- **Loaded Date:** 2026-03-30
+- **Scope:** MVP features only (per PRD Out of Scope section)
+- **Out of Scope:** Usage-based billing, custom branding, SAML/SSO, advanced audit logging, third-party API, mobile app

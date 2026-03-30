@@ -378,3 +378,225 @@ export const AuthProvider = ({ children }) => {
 8. **Hard-coded Stripe keys:** Use environment variables; never commit live keys to Git.
 9. **Ignoring rate limiting:** Brute force attacks target login endpoints; add 5-attempt + 15min lockout.
 10. **Soft-delete without audit trail:** Track why a user was deleted (compliance, GDPR requests, fraud).
+
+---
+
+## Compliance Pattern
+
+### PCI-DSS Scope Reduction
+
+**Rule:** Fenster MUST never touch raw card data. Stripe Elements handles all card collection.
+
+```
+Frontend (Senthil):
+  User → Stripe Elements (hosted iframe) → Stripe API
+  ↓
+  Stripe returns: payment_method_id or client_secret
+  ↓
+Backend (Karthi):
+  POST /api/v1/subscriptions { planId, paymentMethodId }
+  ↓
+  stripe.subscriptions.create({ customer, items, default_payment_method })
+  ↓
+  Store only: stripe_subscription_id, stripe_customer_id (NOT card data)
+```
+
+**Verification Checklist (Auxi verifies per release):**
+- `☐` No `card`, `cardNumber`, `cvv`, `cvc`, `expiry` fields anywhere in DB schema
+- `☐` No card-related data in Pino logs (redact config enforced)
+- `☐` No card data in API request/response bodies (Zod schema enforces no such fields)
+- `☐` Stripe Elements iframe confirmed in frontend (not a custom form)
+- `☐` Network tab in browser shows card data sent directly to `api.stripe.com`, not Fenster backend
+
+### GDPR Data Deletion
+
+Triggered by `DELETE /api/v1/users/me`:
+
+```typescript
+async deleteUser(userId: string) {
+  const user = await User.findByPk(userId);
+
+  // 1. Delete Stripe customer (removes payment methods, cancels subscriptions)
+  if (user.stripeCustomerId) {
+    await stripe.customers.del(user.stripeCustomerId);
+  }
+
+  // 2. Cancel and soft-delete local subscriptions
+  await Subscription.update(
+    { status: 'canceled', deletedAt: new Date() },
+    { where: { userId } }
+  );
+
+  // 3. Anonymize user PII (don't hard-delete — retain for fraud/legal)
+  await user.update({
+    email: `deleted_${userId}@deleted.invalid`,
+    passwordHash: '[DELETED]',
+    deletedAt: new Date(),
+  });
+
+  // 4. Audit log
+  await AuditLog.create({
+    userId,
+    entityType: 'User',
+    entityId: userId,
+    action: 'gdpr_deleted',
+    newState: { reason: 'user_request' },
+  });
+
+  // 5. Scribe logs to gdpr-audit.md
+}
+```
+
+**Data Retention Policy:**
+- Payment records: retained 7 years (PCI-DSS requirement)
+- User PII: anonymized on deletion request; anonymization complete within 30 days
+- Audit logs: retained indefinitely (compliance record, never deleted)
+- Refresh tokens: expire naturally (30 days); purged on user deletion
+
+---
+
+## Reliability Pattern
+
+### Stripe API Retries with Exponential Backoff
+
+Stripe SDK has built-in retry, but configure it explicitly:
+
+```typescript
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2023-10-16',
+  maxNetworkRetries: 3,  // Auto-retry on network errors and 5xx responses
+  timeout: 10000,        // 10s timeout per request
+});
+```
+
+For critical operations, add application-level retry with jitter:
+```typescript
+async function stripeWithRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxAttempts || err.type === 'StripeCardError') throw err;
+      const backoffMs = Math.pow(2, attempt) * 100 + Math.random() * 100;
+      await new Promise(resolve => setTimeout(resolve, backoffMs));
+    }
+  }
+}
+```
+
+### Webhook Endpoint SLA
+
+Stripe requires webhook responses within **30 seconds** — exceeding this causes retries.
+
+```typescript
+// /webhooks/stripe handler
+// 1. Verify signature immediately (< 5ms)
+// 2. Ack with 200 (< 100ms)
+// 3. Process event asynchronously via job queue
+app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const event = verifyWebhookSignature(req);  // throws on invalid
+  res.json({ received: true });               // ack immediately
+  setImmediate(() => processWebhookEvent(event)); // process async
+});
+```
+
+Target: webhook handler responds in <500ms; processing completes in <5s.
+
+### Event Deduplication with DB Idempotency Keys
+
+Stripe retries webhooks on non-2xx or timeout. Process each event exactly once:
+
+```typescript
+// models/WebhookEvent.ts
+// Table: webhook_events (stripeEventId: unique, processedAt)
+
+async function processWebhookEvent(event: Stripe.Event) {
+  const existing = await WebhookEvent.findByPk(event.id);
+  if (existing) {
+    logger.info({ eventId: event.id }, 'Duplicate webhook event, skipping');
+    return;
+  }
+
+  await WebhookEvent.create({ stripeEventId: event.id, processedAt: new Date() });
+  await dispatchEvent(event);
+}
+```
+
+---
+
+## Observability Pattern
+
+### Payment Funnel Metrics
+
+Track payment journey with structured log events:
+
+```typescript
+// Log at each funnel stage (Pino structured events)
+logger.info({ event: 'payment.initiated',    userId, planId, amount });
+logger.info({ event: 'payment.stripe_called', userId, planId, stripeCustomerId });
+logger.info({ event: 'payment.succeeded',    userId, planId, amount, paymentIntentId });
+logger.error({ event: 'payment.failed',      userId, planId, errorCode, stripeError });
+```
+
+**Funnel metrics to monitor (Ralph queries these):**
+- Attempt → Succeeded rate (target: >95%)
+- Attempt → Failed rate (alert if >5%)
+- Mean time from `payment.initiated` to `payment.succeeded` (target: <3s)
+
+### Webhook Processing Latency
+
+```typescript
+logger.info({
+  event: 'webhook.processed',
+  stripeEventType: event.type,
+  stripeEventId: event.id,
+  processingMs: Date.now() - startTime,
+});
+```
+
+Alert Ralph if webhook processing latency p95 exceeds 2000ms.
+
+### Subscription Churn Signals
+
+Log subscription lifecycle transitions:
+```typescript
+logger.info({ event: 'subscription.created',  userId, planId });
+logger.info({ event: 'subscription.upgraded', userId, fromPlan, toPlan });
+logger.info({ event: 'subscription.canceled', userId, planId, reason });
+logger.info({ event: 'subscription.past_due', userId, planId });
+```
+
+---
+
+## Multi-Environment Pattern
+
+### Stripe Test/Live Key Management
+
+```
+STRIPE_SECRET_KEY=sk_test_...     # development + staging
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # different per environment
+
+# Production only (via secrets manager, never in .env file):
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # different webhook secret for prod
+```
+
+**Rules:**
+- `sk_live_` keys NEVER in `.env` files, never committed, only in production secrets manager
+- Each environment (dev, staging, prod) has its own webhook endpoint registered in Stripe Dashboard
+- Test webhooks triggered via `stripe listen --forward-to localhost:3000/webhooks/stripe` for local dev
+- Basher's release gate verifies no `sk_live_` keys appear in source code (`git grep sk_live_`)
+
+### Webhook Endpoint Per Environment
+
+| Environment | Webhook URL | Stripe Mode |
+|-------------|-------------|-------------|
+| Local dev   | Stripe CLI forward | test |
+| Staging     | `https://staging.fenster.app/webhooks/stripe` | test |
+| Production  | `https://fenster.app/webhooks/stripe` | live |
+
+Each environment has its own `STRIPE_WEBHOOK_SECRET` — cross-environment webhook delivery is rejected automatically.

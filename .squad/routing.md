@@ -9,7 +9,8 @@ How to decide who handles what.
 | Frontend UI, components, pages, CSS | Senthil | React components, Vite config, styling |
 | Backend API, services, models, migrations | Karthi | Express routes, Sequelize, Stripe integration |
 | Architecture, code review, scope decisions | Jayanth | What to build next, trade-offs, PR reviews |
-| Tests, quality, edge cases | Auxi | Jest tests, Playwright E2E, test coverage |
+| Tests, quality, edge cases | Auxi | Manual/exploratory testing, payment edge cases, smoke tests |
+| Automated test suites, E2E, regression | Baskar | Playwright E2E, Vitest/Jest unit tests, API contract tests |
 | Build, push to remote, release gating | Basher | Run build+tests, push on green, tag releases |
 | Session logging, decisions | Scribe | Automatic — never needs routing |
 | Issue triage, backlog monitoring | Ralph | GitHub issues, PR status, keep-alive |

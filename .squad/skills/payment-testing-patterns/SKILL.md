@@ -442,9 +442,364 @@ it('should only allow valid state transitions', () => {
 
 ---
 
+## Security Testing Pattern
+
+### Test That Raw Card Data Never Reaches Backend
+
+```typescript
+// tests/security/pci-isolation.test.ts
+it('should never receive card data in request body', async () => {
+  // Simulate a subscription creation — backend should only receive paymentMethodId
+  const res = await request(app)
+    .post('/api/v1/subscriptions')
+    .set('Authorization', `Bearer ${authToken}`)
+    .send({
+      planId: 'pro',
+      paymentMethodId: 'pm_card_visa',  // Only Stripe token, not raw card
+    });
+
+  expect(res.status).toBe(201);
+  // Verify nothing card-related reached backend logs
+  // (Inspect Pino log output captured in test — no cardNumber, cvc, expiry fields)
+});
+
+it('should reject requests containing raw card data', async () => {
+  const res = await request(app)
+    .post('/api/v1/subscriptions')
+    .set('Authorization', `Bearer ${authToken}`)
+    .send({
+      planId: 'pro',
+      cardNumber: '4242424242424242',  // Should be blocked by Zod schema
+      cvv: '123',
+    });
+
+  expect(res.status).toBe(400);
+  expect(res.body.error.code).toBe('VALIDATION_ERROR');
+});
+```
+
+### Webhook Forging Attempts Rejected
+
+```typescript
+it('should reject webhook with missing signature header', async () => {
+  const res = await request(app)
+    .post('/webhooks/stripe')
+    .send(JSON.stringify({ type: 'invoice.payment_succeeded' }));
+
+  expect(res.status).toBe(400);
+});
+
+it('should reject webhook with tampered payload', async () => {
+  const validBody = JSON.stringify({ type: 'invoice.payment_succeeded', id: 'evt_test' });
+  const tamperedBody = JSON.stringify({ type: 'customer.subscription.deleted', id: 'evt_test' });
+
+  // Use valid signature but different body (tampered)
+  const sig = stripe.webhooks.generateTestHeaderString({
+    payload: validBody,
+    secret: process.env.STRIPE_WEBHOOK_SECRET,
+  });
+
+  const res = await request(app)
+    .post('/webhooks/stripe')
+    .set('Stripe-Signature', sig)
+    .set('Content-Type', 'application/json')
+    .send(tamperedBody);
+
+  expect(res.status).toBe(400);
+});
+```
+
+### Replay Attack Prevention
+
+```typescript
+it('should reject replayed webhook events (duplicate event ID)', async () => {
+  const eventId = 'evt_test_replay_001';
+  const event = createMockWebhookEvent({ id: eventId, type: 'invoice.payment_succeeded' });
+
+  // First delivery — should succeed
+  const res1 = await deliverWebhook(event);
+  expect(res1.status).toBe(200);
+
+  // Second delivery (replay) — should be idempotent, not reprocess
+  const res2 = await deliverWebhook(event);
+  expect(res2.status).toBe(200);  // Still 200 (not error)
+
+  // But payment should only have been created once
+  const payments = await Payment.findAll({ where: { stripeEventId: eventId } });
+  expect(payments).toHaveLength(1);
+});
+```
+
+---
+
+## Performance Testing Pattern
+
+### Payment Endpoint Latency Targets
+
+Run with k6 against staging environment before each release:
+
+```javascript
+// tests/load/payment-endpoints.js (k6 script)
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Trend } from 'k6/metrics';
+
+const subscriptionLatency = new Trend('subscription_latency');
+
+export const options = {
+  vus: 50,
+  duration: '60s',
+  thresholds: {
+    'http_req_duration{name:create_subscription}': ['p(95)<500'],  // 500ms p95
+    'http_req_duration{name:get_subscription}': ['p(95)<150'],     // 150ms p95
+    'http_req_failed': ['rate<0.01'],                              // <1% errors
+  },
+};
+
+export default function () {
+  const res = http.get(`${BASE_URL}/api/v1/subscriptions/me`, {
+    headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
+    tags: { name: 'get_subscription' },
+  });
+  check(res, { 'status 200': (r) => r.status === 200 });
+  subscriptionLatency.add(res.timings.duration);
+  sleep(1);
+}
+```
+
+**Targets (p95 at 50 VU steady state):**
+| Endpoint | Target |
+|----------|--------|
+| `POST /api/v1/auth/login` | <200ms |
+| `GET /api/v1/subscriptions/me` | <150ms |
+| `POST /api/v1/subscriptions` | <500ms |
+| `POST /webhooks/stripe` (ack) | <100ms |
+
+### Webhook Processing SLA
+
+```typescript
+// tests/performance/webhook-processing.test.ts
+it('should process webhook within SLA (5s end-to-end)', async () => {
+  const start = Date.now();
+  const event = createMockWebhookEvent({ type: 'invoice.payment_succeeded' });
+
+  await deliverWebhook(event);
+
+  // Poll for DB update — must complete within 5s
+  const updated = await pollUntil(
+    () => Subscription.findOne({ where: { status: 'active', updatedAt: { [Op.gte]: new Date(start) } } }),
+    { timeout: 5000, interval: 200 }
+  );
+
+  expect(updated).not.toBeNull();
+  expect(Date.now() - start).toBeLessThan(5000);
+});
+```
+
+### Stripe API Timeout Handling
+
+```typescript
+it('should handle Stripe API timeout gracefully', async () => {
+  // Mock Stripe to simulate timeout
+  mockStripe.subscriptions.create.mockImplementation(() =>
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out')), 11000)
+    )
+  );
+
+  const res = await request(app)
+    .post('/api/v1/subscriptions')
+    .set('Authorization', `Bearer ${authToken}`)
+    .send({ planId: 'pro', paymentMethodId: 'pm_card_visa' });
+
+  expect(res.status).toBe(503);
+  expect(res.body.error.code).toBe('STRIPE_UNAVAILABLE');
+  // No partial DB state created
+  const sub = await Subscription.findOne({ where: { userId } });
+  expect(sub).toBeNull();
+});
+```
+
+---
+
+## Compliance Testing Pattern
+
+### GDPR Right-to-Erasure Test
+
+```typescript
+// tests/compliance/gdpr.test.ts
+describe('GDPR Right to Erasure', () => {
+  it('should anonymize user PII on deletion request', async () => {
+    const user = await createTestUser({ email: 'gdpr-test@example.com' });
+    const token = await loginUser(user);
+
+    const res = await request(app)
+      .delete('/api/v1/users/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+
+    // User record anonymized (not hard-deleted)
+    const deleted = await User.findByPk(user.id, { paranoid: false });
+    expect(deleted.email).toMatch(/^deleted_.*@deleted\.invalid$/);
+    expect(deleted.passwordHash).toBe('[DELETED]');
+    expect(deleted.deletedAt).not.toBeNull();
+
+    // Stripe customer deleted
+    expect(mockStripe.customers.del).toHaveBeenCalledWith(user.stripeCustomerId);
+
+    // Audit log created
+    const log = await AuditLog.findOne({ where: { userId: user.id, action: 'gdpr_deleted' } });
+    expect(log).not.toBeNull();
+  });
+
+  it('should not expose deleted user data via API', async () => {
+    // After deletion, user's data not accessible
+    const res = await request(app)
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${expiredToken}`);
+
+    expect(res.status).toBe(401);
+  });
+});
+```
+
+### PCI Data Isolation Test (Card Data Never in Logs)
+
+```typescript
+// tests/compliance/pci-isolation.test.ts
+it('should never log card-related data', async () => {
+  const logOutput: string[] = [];
+  const pinoSpy = jest.spyOn(logger, 'info').mockImplementation((obj: any) => {
+    logOutput.push(JSON.stringify(obj));
+  });
+
+  await request(app)
+    .post('/api/v1/subscriptions')
+    .set('Authorization', `Bearer ${authToken}`)
+    .send({ planId: 'pro', paymentMethodId: 'pm_card_visa' });
+
+  const allLogs = logOutput.join('\n');
+  // None of these patterns should appear in logs
+  expect(allLogs).not.toMatch(/4[0-9]{12}(?:[0-9]{3})?/);  // Visa card pattern
+  expect(allLogs).not.toMatch(/cvv|cvc|card_number|cardNumber/i);
+  expect(allLogs).not.toMatch(/sk_live_/);  // Live Stripe key
+
+  pinoSpy.mockRestore();
+});
+```
+
+---
+
+## Chaos Engineering Pattern
+
+### Stripe API Unreachable
+
+```typescript
+// tests/chaos/stripe-unavailable.test.ts
+describe('Chaos: Stripe API unreachable', () => {
+  beforeEach(() => {
+    mockStripe.subscriptions.create.mockRejectedValue(
+      Object.assign(new Error('Network error'), { type: 'StripeConnectionError' })
+    );
+  });
+
+  it('should return 503 and not create partial subscription', async () => {
+    const res = await request(app)
+      .post('/api/v1/subscriptions')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ planId: 'pro', paymentMethodId: 'pm_card_visa' });
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.code).toBe('STRIPE_UNAVAILABLE');
+
+    // No partial subscription record in DB
+    const sub = await Subscription.findOne({ where: { userId } });
+    expect(sub).toBeNull();
+  });
+
+  it('should succeed after retry when Stripe recovers', async () => {
+    // First call fails, second succeeds
+    mockStripe.subscriptions.create
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({ id: 'sub_test123', status: 'active' });
+
+    const res = await request(app)
+      .post('/api/v1/subscriptions')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ planId: 'pro', paymentMethodId: 'pm_card_visa' });
+
+    expect(res.status).toBe(201);
+  });
+});
+```
+
+### DB Write Fails After Stripe Charge
+
+```typescript
+describe('Chaos: DB fails after Stripe charge succeeds', () => {
+  it('should not orphan Stripe subscription when DB write fails', async () => {
+    mockStripe.subscriptions.create.mockResolvedValue({ id: 'sub_test123', status: 'active' });
+
+    // Simulate DB failure
+    jest.spyOn(Subscription, 'create').mockRejectedValue(new Error('DB write failed'));
+    jest.spyOn(mockStripe.subscriptions, 'cancel');  // Monitor for compensating action
+
+    const res = await request(app)
+      .post('/api/v1/subscriptions')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ planId: 'pro', paymentMethodId: 'pm_card_visa' });
+
+    expect(res.status).toBe(500);
+
+    // Compensating transaction: Stripe subscription should be canceled
+    expect(mockStripe.subscriptions.cancel).toHaveBeenCalledWith('sub_test123');
+  });
+});
+```
+
+### Webhook Delivery Delayed / Duplicated
+
+```typescript
+describe('Chaos: Webhook delivery issues', () => {
+  it('should be idempotent when same webhook delivered twice', async () => {
+    const event = createMockWebhookEvent({
+      id: 'evt_chaos_dup',
+      type: 'invoice.payment_succeeded',
+    });
+
+    await deliverWebhook(event);
+    await deliverWebhook(event);  // Duplicate delivery
+
+    // Only one payment record created
+    const payments = await Payment.findAll({ where: { stripeEventId: 'evt_chaos_dup' } });
+    expect(payments).toHaveLength(1);
+  });
+
+  it('should process delayed webhook correctly', async () => {
+    // Simulate webhook arriving 10 minutes after event
+    const event = createMockWebhookEvent({
+      type: 'customer.subscription.deleted',
+      created: Math.floor(Date.now() / 1000) - 600,  // 10 min ago
+    });
+
+    const res = await deliverWebhook(event);
+    expect(res.status).toBe(200);
+
+    const sub = await Subscription.findOne({ where: { userId } });
+    expect(sub.status).toBe('canceled');
+  });
+});
+```
+
+---
+
 ## References
 
 - Stripe Documentation: https://stripe.com/docs/testing
 - idempotency-key usage: https://stripe.com/docs/api/idempotent_requests
 - Webhook signature verification: https://stripe.com/docs/webhooks/signatures
 - State machine pattern: https://refactoring.guru/design-patterns/state
+- k6 Load Testing: https://k6.io/docs/
+- OWASP Testing Guide: https://owasp.org/www-project-web-security-testing-guide/
+- GDPR Right to Erasure: https://gdpr-info.eu/art-17-gdpr/
