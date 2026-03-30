@@ -95,7 +95,7 @@ export default function ProfilePage() {
     setTwoFaPending(true);
     try {
       const res = await apiService.verify2FA(totpToken);
-      if (res.success) {
+      if (res.success && res.data?.enabled === true) {
         setTwoFaEnabled(true);
         setSetupData(null);
         setTotpToken('');
@@ -115,7 +115,7 @@ export default function ProfilePage() {
     setTwoFaPending(true);
     try {
       const res = await apiService.disable2FA(disableToken);
-      if (res.success) {
+      if (res.success && res.data?.enabled === false) {
         setTwoFaEnabled(false);
         setShowDisableInput(false);
         setDisableToken('');

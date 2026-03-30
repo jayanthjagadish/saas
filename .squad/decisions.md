@@ -1172,3 +1172,17 @@ Checking both prevents silent failures if the backend only sends one shape.
 - DashboardPage shows a compact read-only warning linking to /subscription
 - Both surfaces auto-dismiss/refresh on successful retry
 
+
+## karthi-gap-fixes
+### Backend critical gap fixes
+- GAP-004: payments.ts error response now includes success: false
+- GAP-005: dashboard.ts user select now includes 'verified' field
+- GAP-003: payments.ts date field now returns ISO string (not Unix timestamp)
+- GAP-007: plans.ts response now wrapped in { success: true, data: { plans, annual_discount_percent } }
+
+## senthil-gap-fixes
+### Frontend critical gap fixes
+- GAP-001: UsageStats.teamCreatedAt → teamAgeInDays: number in types + AnalyticsPage
+- GAP-006: verify2FA/disable2FA now typed as { enabled: boolean } not { message: string }
+- GAP-007: getPlans() now uses real backend response (removed hardcoded fallback)
+- GAP-002: SubscriptionStatus type expanded to all 8+ fields; UserProfile.id: number → string

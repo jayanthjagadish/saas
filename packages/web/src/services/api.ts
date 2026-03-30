@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamMemberDetail, TeamInvite, UserProfile, Invoice, TwoFactorSetup, UsageStats, MemberGrowth, BillingCalendar } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamMemberDetail, TeamInvite, UserProfile, Invoice, TwoFactorSetup, UsageStats, MemberGrowth, BillingCalendar, SubscriptionStatus } from '../types/api';
 
 /**
  * API Service Layer
@@ -266,21 +266,8 @@ class ApiService {
   // ===== Plans =====
 
   async getPlans(): Promise<ApiResponse<any>> {
-    try {
-      const response = await this.client.get<ApiResponse<any>>('/plans');
-      return response.data;
-    } catch (error) {
-      // Graceful fallback: return a minimal plans payload so UI can render
-      return {
-        success: false,
-        data: [
-          { id: 'free', name: 'Free', priceMonthly: 0, priceYearly: 0, features: { teamMembers: 3 } },
-          { id: 'pro', name: 'Pro', priceMonthly: 20, priceYearly: 192, features: { teamMembers: 10, analytics: true, prioritySupport: true } },
-          { id: 'enterprise', name: 'Enterprise', priceMonthly: 100, priceYearly: 960, features: { teamMembers: 100, analytics: true, prioritySupport: true, customIntegrations: true, customDomainSSO: true } }
-        ],
-        error: { code: 'FETCH_FAILED', message: 'Failed to fetch plans' }
-      } as ApiResponse<any>;
-    }
+    const response = await this.client.get<ApiResponse<any>>('/plans');
+    return response.data;
   }
 
   async getInvoices(): Promise<ApiResponse<{ invoices: Invoice[]; hasMore: boolean }>> {
@@ -300,13 +287,13 @@ class ApiService {
     return res.data;
   }
 
-  async verify2FA(token: string): Promise<ApiResponse<{ message: string }>> {
-    const res = await this.client.post<ApiResponse<{ message: string }>>('/auth/2fa/verify', { token });
+  async verify2FA(token: string): Promise<ApiResponse<{ enabled: boolean }>> {
+    const res = await this.client.post<ApiResponse<{ enabled: boolean }>>('/auth/2fa/verify', { token });
     return res.data;
   }
 
-  async disable2FA(token: string): Promise<ApiResponse<{ message: string }>> {
-    const res = await this.client.post<ApiResponse<{ message: string }>>('/auth/2fa/disable', { token });
+  async disable2FA(token: string): Promise<ApiResponse<{ enabled: boolean }>> {
+    const res = await this.client.post<ApiResponse<{ enabled: boolean }>>('/auth/2fa/disable', { token });
     return res.data;
   }
 

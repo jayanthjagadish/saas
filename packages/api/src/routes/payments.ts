@@ -40,7 +40,7 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data });
   } catch (err) {
     console.error('Error fetching payments:', err);
-    res.status(500).json({ error: 'FETCH_FAILED' });
+    res.status(500).json({ success: false, error: 'FETCH_FAILED', message: 'Failed to fetch payments' });
   }
 });
 

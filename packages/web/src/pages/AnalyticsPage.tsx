@@ -21,9 +21,7 @@ function StatCardSkeleton() {
   );
 }
 
-function teamAgeLabel(createdAt: string): string {
-  const ms = Date.now() - new Date(createdAt).getTime();
-  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+function teamAgeDisplay(days: number): string {
   if (days < 30) return `${days}d old`;
   const months = Math.floor(days / 30);
   if (months < 12) return `${months}mo old`;
@@ -81,8 +79,8 @@ export default function AnalyticsPage() {
             <StatCard label="Plan" value={stats.planName} />
             <StatCard
               label="Team Age"
-              value={teamAgeLabel(stats.teamCreatedAt)}
-              sub={new Date(stats.teamCreatedAt).toLocaleDateString()}
+              value={teamAgeDisplay(stats.teamAgeInDays)}
+              sub={`${stats.teamAgeInDays} days old`}
             />
             <StatCard
               label="Monthly Active Members"

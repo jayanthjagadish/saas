@@ -23,7 +23,7 @@ export default function CheckoutPage() {
     (async () => {
       try {
         const res = await api.getPlans();
-        const plans = res.data || [];
+        const plans = res.data?.plans || [];
         const found = plans.find((p: any) => p.id === planId) || plans[0] || null;
         setPlan(found);
       } catch (e) {

@@ -12,7 +12,7 @@ router.get('/me/dashboard', authMiddleware, async (req: AuthRequest, res: Respon
     if (!userInfo) return res.status(401).json({ success: false, error: 'UNAUTHORIZED' });
 
     // Fetch user
-    const user = await User.findByPk(userInfo.id, { attributes: ['id', 'name', 'email', 'createdAt'] });
+    const user = await User.findByPk(userInfo.id, { attributes: ['id', 'name', 'email', 'createdAt', 'verified'] });
     if (!user) return res.status(404).json({ success: false, error: 'USER_NOT_FOUND' });
 
     // Fetch active subscription with plan
@@ -62,7 +62,7 @@ router.get('/me/dashboard', authMiddleware, async (req: AuthRequest, res: Respon
     return res.json({
       success: true,
       data: {
-        user: { name: user.name, email: user.email, createdAt: user.createdAt },
+        user: { name: user.name, email: user.email, createdAt: user.createdAt, verified: (user as any).verified ?? false },
         subscription: subscriptionData,
         team: teamData,
       },

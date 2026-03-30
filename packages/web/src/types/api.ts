@@ -111,7 +111,7 @@ export interface TeamInvite {
 }
 
 export interface UserProfile {
-  id: number;
+  id: string;
   email: string;
   name: string | null;
   avatarUrl: string | null;
@@ -139,7 +139,7 @@ export interface UsageStats {
   memberCount: number;
   memberLimit: number;
   planName: string;
-  teamCreatedAt: string;
+  teamAgeInDays: number;
   monthlyActiveMembers: number;
 }
 
@@ -149,10 +149,14 @@ export interface MemberGrowth {
 }
 
 export interface SubscriptionStatus {
+  status: string;
+  planName: string;
+  planTier: string;
+  priceDisplay: string;
+  currentPeriodEnd?: string | number;
+  cancelAtPeriodEnd?: boolean;
   memberCount: number;
   memberLimit: number;
-  planName: string;
-  planId?: string;
 }
 
 export interface BillingEvent {

@@ -8,7 +8,7 @@ const PlanComparison: React.FC = () => {
   const navigate = useNavigate();
 
   const { data: plansResp, isLoading, error } = useQuery({ queryKey: ['plans'], queryFn: () => api.getPlans() });
-  const plans = plansResp?.data ?? [
+  const plans = plansResp?.data?.plans ?? [
     { id: 'free', name: 'Free', priceMonthly: 0, priceYearly: 0, features: { teamMembers: 3 } },
     { id: 'pro', name: 'Pro', priceMonthly: 20, priceYearly: 192, features: { teamMembers: 10, analytics: true, prioritySupport: true } },
     { id: 'enterprise', name: 'Enterprise', priceMonthly: 100, priceYearly: 960, features: { teamMembers: 100, analytics: true, prioritySupport: true, customIntegrations: true, customDomainSSO: true } },

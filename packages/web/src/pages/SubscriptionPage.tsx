@@ -65,7 +65,7 @@ export default function SubscriptionPage() {
         const p = await api.getPayments();
         setPayments(p.data || []);
         const pl = await api.getPlans();
-        setPlans(pl.data || []);
+        setPlans(pl.data?.plans || []);
         try {
           const ss = await api.getSubscriptionStatus();
           if (ss.data) setSubStatus(ss.data);
