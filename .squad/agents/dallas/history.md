@@ -96,6 +96,70 @@ Added a responsive signup page with email, password, and company name fields, a 
 
 Date: 2026-03-28
 
+### Implemented US-002 — Login Form with Session Management
+
+Added Login UI (email, password show/hide, remember me), an AuthContext and useAuth hook that keep the JWT in-memory and schedule token refresh via POST /auth/refresh. ProtectedRoute was added to guard dashboard routes and Layout now displays the logged-in user email and a Logout button which calls POST /auth/logout. Tests added for LoginPage (unit test mocking AuthContext) and responsive TailwindCSS styling applied.
+
 ### 2026-03-28 — Implemented US-021 Frontend
 
 Added Checkout and Subscription management pages, Stripe card element component, Stripe wrapper hook, and API adjustments to support server-side payment confirmation. Implemented client-side billing toggle and responsive TailwindCSS layouts; added tests for checkout billing toggle. Learned to prefer backend-created client_secret for payment confirmation and to mock Stripe in unit tests.
+
+### 2026-03-28 — Implemented US-004 Password Reset Flow
+
+Built complete password reset flow with two pages:
+- `forgot-password.tsx`: Email submission page with security-first design (always shows success message)
+- `reset-password.tsx`: Password reset page with token validation, password strength indicator, show/hide toggles
+
+Added API service methods `forgotPassword(email)` and `resetPassword(token, newPassword)`. Updated LoginPage with "Forgot password?" link. Added routes `/auth/forgot-password` and `/auth/reset-password` to App.tsx.
+
+Key patterns:
+- Security by obscurity: don't reveal if email exists
+- Password strength indicator reused from signup
+- Query param parsing with useSearchParams
+- Redirect to login with success message on completion
+- Graceful handling of expired/invalid tokens
+
+### 2026-03-28 — Implemented US-025 Subscription Cancellation UI
+
+Enhanced SubscriptionPage with:
+- Confirmation modal with consequences listed
+- Warning banner showing end_date and days_remaining after cancellation
+- Reactivate button for cancelled-but-not-expired subscriptions
+- Better error handling and loading states
+
+Added API service methods `cancelSubscription()` returning `{end_date, days_remaining}` and `reactivateSubscription()`. Modal uses TailwindCSS with overlay and accessible design. Cancel flow: button → modal → API call → success state with reactivate option.
+
+Documented expected backend API contracts in `.squad/decisions/inbox/dallas-us004-us025.md` for Fenster to implement.
+
+## Sprint 2 Update (2026-03-30)
+
+Completed US-004 Password Reset UI and US-025 Subscription Cancellation UI with Fenster and Hockney.
+
+**Password Reset Implementation:**
+- ForgotPasswordPage: Email submission with security-first messaging
+- ResetPasswordPage: Token validation, password strength indicator, confirm password
+- LoginPage: Added "Forgot password?" link
+- API methods: forgotPassword() and resetPassword()
+- Routes: /auth/forgot-password and /auth/reset-password
+
+**Subscription Cancellation Implementation:**
+- Cancel button for paid subscribers (hidden for free plan)
+- Confirmation modal with warning banner about end_date
+- Success state showing days_remaining countdown
+- Reactivate button to undo cancellation before period end
+- API methods: cancelSubscription() and reactivateSubscription()
+
+**Coordination with Fenster:**
+- Received API contracts with request/response examples
+- Integrated endpoints for password reset and cancellation
+- Used Axios JWT interceptor for all requests
+- Verified error handling with specific error codes
+
+**Coordination with Hockney:**
+- E2E tests written for full user journeys
+- Frontend tests for UI components (modal, buttons, loading states)
+- Form validation tested (empty fields, weak passwords, mismatched confirmation)
+- Error scenarios covered (expired token, no subscription, etc.)
+
+**Status:** Ready for Keaton UX review and Hockney E2E test execution.
+

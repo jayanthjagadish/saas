@@ -62,6 +62,78 @@
 - Structured logging (pino/winston) for audit trail
 - Services layer for Stripe, Auth, Subscriptions business logic
 
+### 8. Password Reset Flow: Security Design (Sprint 2)
+**Status:** Implemented  
+**Owner:** Fenster  
+**Date:** 2026-03-30  
+**Details:**
+- Token generation: crypto.randomBytes(32).toString('hex') for 256-bit entropy
+- Token expiry: 1 hour (balances security with user convenience)
+- User enumeration prevention: All forgot-password requests return 200 OK
+- Session invalidation: All refresh tokens revoked on password reset
+- One-time use: Tokens marked as used after first reset
+- Input validation: Zod schemas (email format, password min 8 chars + uppercase + number)
+- Email delivery: Dev-emails pattern (`reset-{timestamp}-{email}.txt`)
+
+**Rationale:**
+- Crypto random tokens are simpler and equally secure as JWT tokens for one-time use
+- 1-hour expiry balances security with UX (users often check email after time passes)
+- Session revocation ensures compromised passwords don't leave attacker sessions active
+- No user enumeration prevents attackers from discovering valid email addresses
+
+### 9. Subscription Cancellation: Stripe Integration Pattern (Sprint 2)
+**Status:** Implemented  
+**Owner:** Fenster  
+**Date:** 2026-03-30  
+**Details:**
+- Cancellation pattern: `cancel_at_period_end: true` (user retains access until period end)
+- Status model: New 'cancellation_pending' status (distinct from 'canceled')
+- End date calculation: Returned to frontend as `end_date` and `days_remaining`
+- Reactivation: Available before `end_date` via `POST /subscriptions/me/reactivate`
+- Email notification: Sent on cancellation with end_date and reactivation instructions
+- Stripe idempotency: Idempotency keys derived from user+plan+timestamp
+
+**Rationale:**
+- `cancel_at_period_end` reduces support requests about lost access after payment
+- 'cancellation_pending' status provides clarity (not immediately canceled)
+- Frontend display of days remaining improves UX and reduces churn
+- Reactivation option before end date supports saved-subscription flows
+
+### 10. Frontend API Contracts: User-Driven Design (Sprint 2)
+**Status:** Implemented  
+**Owner:** Dallas  
+**Date:** 2026-03-30  
+**Details:**
+- Password reset: 2-step flow (forgot-password request → reset-password token+new password)
+- Cancellation UI: Confirmation modal with end_date and days_remaining display
+- Reactivation: Button shown after cancellation, reverses status before period end
+- Form validation: Client-side (email format, password strength, confirmation match)
+- Error recovery: Clear messaging for expired tokens, weak passwords, missing subscriptions
+- Security messaging: No user enumeration indicators ("If that email is registered...")
+
+**Rationale:**
+- 2-step password reset improves UX (email retrieval step explicit, token validation separate)
+- Modal confirmation prevents accidental cancellations
+- Days remaining display increases user awareness of access timeline
+- Reactivation button reduces churn on cancellation regret
+
+### 11. Test Strategy: Comprehensive Coverage with Gaps Documented (Sprint 2)
+**Status:** Implemented  
+**Owner:** Hockney  
+**Date:** 2026-03-30  
+**Details:**
+- Unit tests: 21 test cases (password reset + cancellation) with Jest and in-memory DB
+- E2E tests: 7 test cases with Playwright (full user journeys)
+- Frontend tests: 9 test cases with Vitest + React Testing Library
+- Security verification: No user enumeration, token invalidation, session revocation
+- Identified gaps: Rate limiting, concurrency, email verification, webhooks, refunds, templates, mobile
+
+**Rationale:**
+- In-memory DB provides fast test execution without external dependencies
+- Comprehensive coverage catches security issues and edge cases early
+- Gap documentation enables prioritization for future sprints
+- Test patterns established for reuse in future features
+
 ## Governance
 
 - All meaningful changes require team consensus
