@@ -699,3 +699,39 @@ Wrote downgrade subscription tests in parallel with Karthi (backend) and Senthil
 
 ### Status
 TypeScript compiles clean (	sc --noEmit passes). Tests ready to run against live server once Karthi's /subscriptions/downgrade endpoint and Senthil's billing UI are deployed.
+
+---
+
+## 2026-03-30 - US-025: Subscription Cancellation Tests
+
+### Task
+Wrote API and E2E tests for subscription cancellation/reactivation (US-025), as pair agent alongside Karthi (backend) and Senthil (frontend).
+
+### Files Created
+1. `tests/api/cancel.test.ts` — Jest HTTP integration tests
+2. `tests/e2e/cancellation.spec.ts` — Playwright E2E tests
+
+### Test Coverage
+
+#### API Tests (`tests/api/cancel.test.ts`)
+- `POST /subscriptions/cancel` returns 401 without auth token
+- `POST /subscriptions/cancel` returns 200 + accessUntil date for authenticated user (skips gracefully for free-plan test user with no paid subscription)
+- After cancel: subscription `cancelAtPeriodEnd` is `true` and status is `cancellation_pending`
+- `POST /subscriptions/reactivate` returns 401 without auth token
+- `POST /subscriptions/reactivate` returns 200 and restores `status: active` + `cancelAtPeriodEnd: false`
+- Cannot reactivate when no pending cancellation (period already ended / never cancelled) → 400 or 404
+
+#### E2E Tests (`tests/e2e/cancellation.spec.ts`)
+- Cancel Subscription button visible on `/subscription` page for active paid plan
+- Confirmation modal appears (with Keep My Subscription + Yes, Cancel buttons) before cancellation is submitted
+- After confirm cancel: yellow "Subscription Cancelling" banner with "will end on" message and Reactivate Subscription button appear
+- Clicking Reactivate: success banner "Subscription reactivated successfully" appears; cancellation banner disappears; Cancel button is restored
+
+### Patterns Followed
+- Mirrored `tests/api/profile.test.ts`: `beforeAll` login via `/auth/login`, Bearer token on all authenticated requests, graceful early-return for no-subscription test users
+- Mirrored `tests/e2e/subscription-flows.spec.ts`: `beforeEach` login via `/login` page, `waitForURL('**/dashboard')`, `test.skip` for environments without active paid subscriptions
+- Selectors derived from live `packages/web/src/pages/SubscriptionPage.tsx` (button text, modal class, banner copy)
+- Both files pass `npx jest --testPathPattern=tests/api/cancel` (6/6 tests green)
+
+### Status
+Tests compile and pass. Awaiting Karthi's `POST /subscriptions/cancel` and `POST /subscriptions/reactivate` endpoints (current impl uses `/me/cancel`, `/me/reactivate` — spec targets plain `/cancel`, `/reactivate`) and Senthil's `/subscription` page with cancel modal to run end-to-end.

@@ -707,3 +707,84 @@ Changed VITE_API_BASE_URL from http://localhost:3001/api to /api (relative path)
 
 Auth E2E run results: 4 passed, 23 failed (16 = missing Firefox/WebKit binaries; 3 = real Chromium failures). Action items: Senthil to fix login error display and signup duplicate email visibility. Baskar to run 
 px playwright install.
+# Decision Log: US-023 Downgrade Subscription
+
+**Author:** Karthi (Backend Engineer)  
+**Date:** 2025-07-10  
+**Story:** US-023 — Downgrade Subscription Backend
+
+---
+
+## Decisions Made
+
+### 1. Model is `Subscription`, not `UserSubscription`
+The task referenced `UserSubscription` but the actual model is `Subscription` at `models/Subscription.ts`. Used the correct model.
+
+### 2. `billing_interval` not in Subscription schema
+The Subscription model has no `billing_interval` / `billingInterval` column. Updated available fields: `planId`, `status`, `pricePerMonth`. The `pricePerMonth` is set to monthly equivalent (annual price / 12 for annual billing).
+
+**Recommendation:** Add `billing_interval ENUM('monthly','annual')` column to `subscriptions` table in a future migration.
+
+### 3. `'credit_unused'` proration_behavior type cast
+Stripe v14 (installed: 14.25.0) types define `SubscriptionUpdateParams.ProrationBehavior` as `'always_invoice' | 'create_prorations' | 'none'`. The `'credit_unused'` value exists in the Stripe API but was removed from the TS types in this version. Used `as any` cast to satisfy the requirement without breaking the runtime call.
+
+### 4. Member count via TeamMember
+"Member count" is interpreted as `TeamMember.count()` for the team owned by the requesting user. If the user has no owned team, the member limit check is skipped (no team = no members to constrain).
+
+### 5. Stripe price ID not on Plan model
+`Plan` has `price_monthly` / `price_annual` (decimal amounts) but no `stripe_price_id`. The Stripe update call reuses the existing subscription item's price ID. In production, a `stripe_price_id_monthly` + `stripe_price_id_annual` should be added to the `plans` table so the downgrade actually changes the Stripe price.
+
+### 6. Dev email follows existing pattern
+Added `sendDowngradeEmail()` to `services/email.ts` matching the naming convention `downgrade-{email}-{timestamp}.txt` from the task spec and consistent with existing `cancel-{email}-{timestamp}.txt` pattern.
+
+
+---
+
+# Decision Record: US-025 Subscription Cancellation Backend
+
+**Author:** Karthi (Backend Engineer)
+**Date:** 2026-03-30
+**Story:** US-025
+
+## Decision: Add `cancelled` status alongside existing `canceled`
+
+**Context:** The existing `SubscriptionStatus` type uses the American spelling `canceled`. US-025 requires status → `cancelled` (British/double-l). Rather than repurpose the existing `canceled` value (which may be set by Stripe webhooks), a distinct `cancelled` value was added to represent user-initiated soft cancellation via the new endpoint.
+
+**Outcome:** Both spellings coexist in the ENUM. Stripe webhook flows still use `canceled`; the new `/cancel` endpoint uses `cancelled`.
+
+## Decision: `cancelledAt` field added to Subscription model
+
+**Context:** US-025 requires recording the timestamp when the user requested cancellation (distinct from when access ends). The field `cancelledAt` (DB: `cancelled_at`) was added as nullable DATE.
+
+**Note:** A DB migration is needed to add the `cancelled_at` column and extend the `status` ENUM. This was not created here — Sequelize model reflects the target schema.
+
+## New Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | /subscriptions/cancel | ✅ Bearer | Soft-cancel subscription, access until period end |
+| POST | /subscriptions/reactivate | ✅ Bearer | Undo soft-cancel while period still active |
+
+## Return Shapes
+
+**POST /subscriptions/cancel**
+```json
+{ "success": true, "data": { "accessUntil": "2026-04-30T00:00:00.000Z", "message": "Access continues until 2026-04-30" } }
+```
+
+**POST /subscriptions/reactivate**
+```json
+{ "success": true }
+```
+
+## Email
+
+Dev email written to `dev-emails/cancel-{email}-{timestamp}.txt` via new `sendCancelEmail` function.
+
+
+---
+
+### 2026-03-30T20-06-26: User directive
+**By:** jayanth.jagadish (via Copilot)
+**What:** After every 3-agent tuple (Backend + Frontend + Tester) completes, the orchestrator must automatically queue and launch the next pending tuple from the backlog — no waiting for user input.
+**Why:** User request — captured for team memory. Ensures the pipeline never idles between feature batches.
