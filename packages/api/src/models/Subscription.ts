@@ -1,18 +1,20 @@
 import { DataTypes, Model, ForeignKey } from 'sequelize';
 import sequelize from '../config/database.js';
 import { User } from './User.js';
+import Plan from './Plan.js';
 
-export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'unpaid';
+export type SubscriptionStatus = 'active' | 'pending' | 'past_due' | 'canceled' | 'unpaid' | 'cancellation_pending';
 
 export interface ISubscription {
   id: string;
   userId: string;
-  stripeSubscriptionId: string;
-  stripeProductId: string;
+  planId: string;
+  stripeSubscriptionId?: string | null;
+  stripeCustomerId?: string | null;
   status: SubscriptionStatus;
   pricePerMonth: number;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -21,12 +23,13 @@ export interface ISubscription {
 export class Subscription extends Model<ISubscription> implements ISubscription {
   declare id: string;
   declare userId: ForeignKey<User['id']>;
-  declare stripeSubscriptionId: string;
-  declare stripeProductId: string;
+  declare planId: ForeignKey<Plan['id']>;
+  declare stripeSubscriptionId?: string | null;
+  declare stripeCustomerId?: string | null;
   declare status: SubscriptionStatus;
   declare pricePerMonth: number;
-  declare currentPeriodStart: Date;
-  declare currentPeriodEnd: Date;
+  declare currentPeriodStart?: Date | null;
+  declare currentPeriodEnd?: Date | null;
   declare cancelAtPeriodEnd?: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -43,35 +46,58 @@ Subscription.init(
       type: DataTypes.UUID,
       allowNull: false,
       references: { model: User, key: 'id' },
+      field: 'user_id',
+    },
+    planId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: { model: Plan, key: 'id' },
+      field: 'plan_id',
     },
     stripeSubscriptionId: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
+      field: 'stripe_subscription_id',
     },
-    stripeProductId: {
+    stripeCustomerId: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
+      field: 'stripe_customer_id',
     },
     status: {
-      type: DataTypes.ENUM('active', 'trialing', 'past_due', 'canceled', 'unpaid'),
-      defaultValue: 'trialing',
+      type: DataTypes.ENUM('active', 'pending', 'past_due', 'canceled', 'unpaid', 'cancellation_pending'),
+      defaultValue: 'pending',
     },
     pricePerMonth: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
+      field: 'price_per_month',
     },
     currentPeriodStart: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
+      field: 'current_period_start',
     },
     currentPeriodEnd: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
+      field: 'current_period_end',
     },
     cancelAtPeriodEnd: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
+      field: 'cancel_at_period_end',
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
@@ -79,6 +105,12 @@ Subscription.init(
     modelName: 'Subscription',
     tableName: 'subscriptions',
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['user_id', 'plan_id'],
+      },
+    ],
   }
 );
 

@@ -16,6 +16,7 @@
 | Dallas | Frontend Dev | `.squad/agents/dallas/charter.md` | active |
 | Fenster | Backend Dev | `.squad/agents/fenster/charter.md` | active |
 | Hockney | Tester | `.squad/agents/hockney/charter.md` | active |
+| Basher | Release Engineer | `.squad/agents/basher/charter.md` | active |
 | Ralph | Work Monitor | — | active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | active |
 
@@ -26,3 +27,10 @@
 - **Created:** 2026-03-28
 - **Stack:** TypeScript, React (frontend), Express (backend), MySQL (database), Stripe (payments)
 - **Scope:** Subscription-based SaaS with aesthetic UI
+
+## Issue Source
+
+- **Repository:** jayanthjagadish/saas
+- **URL:** https://github.com/jayanthjagadish/saas.git
+- **Connected:** 2026-03-30
+- **MCP:** github-mcp-server (preferred) — gh CLI fallback when available

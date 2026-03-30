@@ -7,6 +7,12 @@ export interface IUser {
   password: string;
   name?: string;
   stripeCustomerId?: string;
+  verified: boolean;
+  emailVerifiedToken?: string | null;
+  emailVerifiedTokenExpires?: Date | null;
+  emailVerifiedAt?: Date | null;
+  resetPasswordToken?: string | null;
+  resetPasswordExpires?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +27,8 @@ export class User extends Model<IUser> implements IUser {
   declare emailVerifiedToken?: string | null;
   declare emailVerifiedTokenExpires?: Date | null;
   declare emailVerifiedAt?: Date | null;
+  declare resetPasswordToken?: string | null;
+  declare resetPasswordExpires?: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -50,6 +58,7 @@ User.init(
       type: DataTypes.STRING,
       allowNull: true,
       unique: true,
+      field: 'stripe_customer_id',
     },
     verified: {
       type: DataTypes.BOOLEAN,
@@ -70,6 +79,26 @@ User.init(
       type: DataTypes.DATE,
       allowNull: true,
       field: 'email_verified_at',
+    },
+    resetPasswordToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'reset_password_token',
+    },
+    resetPasswordExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'reset_password_expires',
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {

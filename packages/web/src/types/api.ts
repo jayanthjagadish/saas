@@ -26,6 +26,7 @@ export interface AuthTokens {
 export interface LoginRequest {
   email: string;
   password: string;
+  remember_me?: boolean;
 }
 
 export interface SignupRequest {

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import apiService from '../services/api';
+import useAuth from '../hooks/useAuth';
 
 interface LayoutProps {
   children: ReactNode;
@@ -8,14 +9,17 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
-  const isAuthenticated = apiService.isAuthenticated();
+  const auth = useAuth();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const handleLogout = async () => {
+    setLogoutError(null);
     try {
-      await apiService.logout();
-      navigate('/');
+      await auth.logout();
+      navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
+      setLogoutError('Logout failed. Please try again.');
     }
   };
 
@@ -24,13 +28,20 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header/Navigation */}
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Error message */}
+          {logoutError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm">
+              {logoutError}
+            </div>
+          )}
+
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
               <span className="text-2xl font-bold text-primary-600">Fenster</span>
             </Link>
 
             <div className="flex items-center gap-4">
-              {isAuthenticated ? (
+              {auth?.token ? (
                 <>
                   <Link
                     to="/dashboard"
@@ -38,6 +49,7 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Dashboard
                   </Link>
+                  <div className="text-sm text-gray-700 px-3">{auth.user?.email}</div>
                   <button
                     onClick={handleLogout}
                     className="bg-primary-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-primary-700"
@@ -48,13 +60,13 @@ export default function Layout({ children }: LayoutProps) {
               ) : (
                 <>
                   <Link
-                    to="/auth/login"
+                    to="/login"
                     className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
                   >
                     Login
                   </Link>
                   <Link
-                    to="/auth/signup"
+                    to="/signup"
                     className="bg-primary-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-primary-700"
                   >
                     Sign Up

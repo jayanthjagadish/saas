@@ -8,14 +8,15 @@ import Session from './Session.js';
 
 // Define relationships
 User.hasMany(Subscription, { foreignKey: 'userId', as: 'subscriptions' });
-User.hasMany(Payment, { foreignKey: 'userId', as: 'payments' });
 User.hasMany(Session, { foreignKey: 'userId', as: 'sessions' });
 
 Subscription.belongsTo(User, { foreignKey: 'userId' });
-Payment.belongsTo(User, { foreignKey: 'userId' });
-Session.belongsTo(User, { foreignKey: 'userId' });
+Subscription.belongsTo(Plan, { foreignKey: 'planId', as: 'plan' });
 
-// Plans are standalone for now
+Payment.belongsTo(Subscription, { foreignKey: 'subscriptionId', as: 'subscription' });
+Subscription.hasMany(Payment, { foreignKey: 'subscriptionId', as: 'payments' });
+
+Session.belongsTo(User, { foreignKey: 'userId' });
 
 export { User, Subscription, Payment, Plan, Session };
 export default { User, Subscription, Payment, Plan, Session };

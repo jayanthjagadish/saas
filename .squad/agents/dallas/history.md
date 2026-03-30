@@ -163,3 +163,39 @@ Completed US-004 Password Reset UI and US-025 Subscription Cancellation UI with 
 
 **Status:** Ready for Keaton UX review and Hockney E2E test execution.
 
+### TypeScript Build Fix (2026-03-30)
+
+Fixed all 23 TypeScript compilation errors in `packages/web`. Build now exits 0.
+
+**React Query v5 Migration Pattern:**
+- Old v4 syntax: `useQuery(['key'], fn)` or `useQuery(['key'], fn, options)`
+- New v5 syntax: `useQuery({ queryKey: ['key'], queryFn: fn, ...options })`
+- Both positional-array-key and 3-arg forms are removed in v5; always use the options object form.
+
+**Type Patterns Fixed:**
+- `ApiResponse<T>.data` is `T | undefined` — always coerce to null with `?? null` before assigning to `State<T | null>`.
+- `LoginRequest` missing `remember_me?: boolean` — added optional field to the shared type.
+- `ApiResponse.error` shape is `{ code, message }` not a plain string — fallback objects must match the typed shape.
+- `JSX.Element` namespace not available without explicit `@types/react` JSX namespace — use `ReactElement` from react instead.
+- `verbatimModuleSyntax` requires type-only imports to use `import type` — remove or convert type-only re-exports.
+
+**Unused Import Pattern:**
+- Post-JSX-transform (`"jsx": "react-jsx"`), `import React from 'react'` is not needed in component files. Remove it.
+- Unused variables from hook calls (`const stripe = useStripe()`) — either remove the call or remove the variable if the hook side-effect isn't needed.
+
+**Test Files Exclusion:**
+- `tsconfig.app.json` `include: ["src"]` picks up `*.test.tsx` files which import `vitest`/`@testing-library` not in production deps.
+- Fix: add `exclude` for `**/*.test.{ts,tsx}` and `**/*.spec.{ts,tsx}` patterns.
+
+**Files Changed:**
+- `src/components/PlanComparison.tsx` — React Query v5 migration
+- `src/components/StripeCardElement.tsx` — remove unused imports
+- `src/context/AuthContext.tsx` — fix `User | undefined` → `User | null` coercion
+- `src/hooks/useStripe.ts` — remove unused `Stripe` type import
+- `src/middleware/ProtectedRoute.tsx` — remove unused React, fix JSX.Element → ReactElement
+- `src/pages/CheckoutPage.tsx` — remove unused React import
+- `src/pages/SubscriptionPage.tsx` — remove unused React/navigate, fix setCancelInfo type
+- `src/services/api.ts` — fix error shape in fallback response
+- `src/types/api.ts` — add `remember_me?: boolean` to LoginRequest
+- `tsconfig.app.json` — exclude test files from production build
+

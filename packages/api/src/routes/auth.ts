@@ -2,10 +2,12 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { User, Subscription } from '../models/index.js';
 import { sendVerificationEmail } from '../services/email.js';
 import { config } from '../config/index.js';
-import { generateAccessToken, generateRefreshToken } from '../services/auth.js';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken, revokeSession, requestPasswordReset, resetPassword } from '../services/auth.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -47,20 +49,26 @@ router.post('/signup', async (req: Request, res: Response) => {
       verified: false,
       emailVerifiedToken: token,
       emailVerifiedTokenExpires: expires,
-    });
+    } as any);
 
     // Auto-enroll in free plan (local record)
     const now = new Date();
     const thirtyDays = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const freePlan = await (await import('../models/index.js')).Plan.findOne({
+      where: { tier: 'free' }
+    });
+    if (!freePlan) {
+      throw new Error('Free plan not found');
+    }
     await Subscription.create({
       userId: user.id,
+      planId: freePlan.id,
       stripeSubscriptionId: `local-free-${uuidv4()}`,
-      stripeProductId: 'free',
       status: 'active',
       pricePerMonth: 0.0,
       currentPeriodStart: now,
       currentPeriodEnd: thirtyDays,
-    });
+    } as any);
 
     // Send verification email
     await sendVerificationEmail(email, token);
@@ -117,7 +125,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
   try {
     // Rate limiting check
-    const { loginRateLimit, incrementFailedAttempt, resetAttempts } = await import('../middleware/rate-limit.js');
+    const rateLimitModule = await import('../middleware/rate-limit.js');
+    const { loginRateLimit, incrementFailedAttempt, resetAttempts } = rateLimitModule;
     // run quick check
     // @ts-ignore
     if (loginRateLimit) {
@@ -142,7 +151,6 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      const { incrementFailedAttempt } = await import('../middleware/rate-limit.js');
       incrementFailedAttempt(ip);
       console.warn(`Failed login attempt for ${email} from ${ip} at ${new Date().toISOString()}`);
       res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
@@ -150,7 +158,6 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // success: reset attempts
-    const { resetAttempts } = await import('../middleware/rate-limit.js');
     resetAttempts(ip);
 
     // create session and refresh token
@@ -158,7 +165,12 @@ router.post('/login', async (req: Request, res: Response) => {
     const now = Date.now();
     const refreshDays = remember ? 90 : 30;
     const expiresAt = new Date(now + refreshDays * 24 * 60 * 60 * 1000);
-    await (await import('../models/index.js')).Session.create({ id: sessionId, userId: user.id, expiresAt });
+    await (await import('../models/index.js')).Session.create({ 
+      id: sessionId, 
+      userId: user.id, 
+      expiresAt,
+      revoked: false,
+    } as any);
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user, sessionId, `${refreshDays}d`);
@@ -213,7 +225,12 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     const newSessionId = uuidv4();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await SessionModel.create({ id: newSessionId, userId: user.id, expiresAt });
+    await SessionModel.create({ 
+      id: newSessionId, 
+      userId: user.id, 
+      expiresAt,
+      revoked: false,
+    } as any);
 
     const newAccess = generateAccessToken(user);
     const newRefresh = generateRefreshToken(user, newSessionId);
@@ -229,6 +246,117 @@ router.post('/refresh', async (req: Request, res: Response) => {
   } catch (e) {
     console.error('Refresh error', e);
     res.status(401).json({ error: 'INVALID_REFRESH', message: 'Invalid refresh token' });
+  }
+});
+
+// Logout endpoint
+router.post('/logout', authMiddleware, async (req: AuthRequest, res: Response) => {
+  const token = req.cookies && req.cookies.refresh_token;
+  if (!token) {
+    res.status(401).json({ error: 'MISSING_TOKEN', message: 'Refresh token missing' });
+    return;
+  }
+
+  try {
+    const payload = verifyRefreshToken(token);
+    
+    if (!payload.sid) {
+      res.status(401).json({ error: 'INVALID_REFRESH_TOKEN', message: 'Invalid refresh token' });
+      return;
+    }
+
+    await revokeSession(payload.sid);
+
+    res.clearCookie('refresh_token', {
+      httpOnly: true,
+      secure: config.app.nodeEnv === 'production',
+      sameSite: 'lax',
+    });
+
+    res.json({ success: true, message: 'Logged out successfully' });
+  } catch (err) {
+    console.error('Logout error', err);
+    if (err instanceof Error && err.message.includes('SESSION_REVOKED')) {
+      res.status(401).json({ error: 'SESSION_REVOKED', message: 'Session already revoked' });
+    } else {
+      res.status(401).json({ error: 'LOGOUT_FAILED', message: 'Failed to logout' });
+    }
+  }
+});
+
+// Password reset request
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = forgotPasswordSchema.parse(req.body);
+    
+    await requestPasswordReset(email);
+    
+    // Always return success to prevent user enumeration
+    res.json({ 
+      success: true, 
+      message: 'If an account exists with that email, a password reset link has been sent.' 
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: 'VALIDATION_ERROR', 
+        message: 'Invalid email format',
+        details: err.errors 
+      });
+      return;
+    }
+    console.error('Forgot password error', err);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to process request' });
+  }
+});
+
+// Password reset confirmation
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  newPassword: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = resetPasswordSchema.parse(req.body);
+    
+    await resetPassword(token, newPassword);
+    
+    res.json({ 
+      success: true, 
+      message: 'Password has been reset successfully. All active sessions have been logged out.' 
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: 'VALIDATION_ERROR', 
+        message: 'Invalid input',
+        details: err.errors 
+      });
+      return;
+    }
+    
+    if (err instanceof Error) {
+      if (err.message.includes('INVALID_TOKEN') || err.message.includes('EXPIRED_TOKEN')) {
+        res.status(400).json({ 
+          error: err.message.includes('EXPIRED') ? 'EXPIRED_TOKEN' : 'INVALID_TOKEN',
+          message: err.message.includes('EXPIRED') 
+            ? 'Reset token has expired. Please request a new one.' 
+            : 'Invalid reset token.'
+        });
+        return;
+      }
+    }
+    
+    console.error('Reset password error', err);
+    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to reset password' });
   }
 });
 

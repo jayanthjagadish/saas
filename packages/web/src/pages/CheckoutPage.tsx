@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { StripeWrapper } from '../hooks/useStripe';
 import StripeCardElement from '../components/StripeCardElement';

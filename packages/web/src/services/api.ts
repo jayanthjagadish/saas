@@ -12,6 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001
 class ApiService {
   private client: AxiosInstance;
   private refreshTokenPromise: Promise<string> | null = null;
+  private accessToken: string | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -84,6 +85,14 @@ class ApiService {
     return response.data;
   }
 
+  async forgotPassword(email: string): Promise<void> {
+    await this.client.post('/auth/forgot-password', { email });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await this.client.post('/auth/reset-password', { token, newPassword });
+  }
+
   async login(payload: LoginRequest): Promise<ApiResponse<AuthTokens>> {
     const response = await this.client.post<ApiResponse<AuthTokens>>('/auth/login', payload);
     if (response.data.data?.accessToken) {
@@ -100,7 +109,7 @@ class ApiService {
     }
   }
 
-  private async refreshAccessToken(): Promise<string> {
+  async refreshAccessToken(): Promise<string> {
     // Reuse existing refresh promise to avoid multiple refresh requests
     if (this.refreshTokenPromise) {
       return this.refreshTokenPromise;
@@ -112,6 +121,8 @@ class ApiService {
         if (!response.data.data?.accessToken) {
           throw new Error('No access token in refresh response');
         }
+        // Update in-memory token
+        this.setAccessToken(response.data.data.accessToken);
         return response.data.data.accessToken;
       } finally {
         this.refreshTokenPromise = null;
@@ -151,8 +162,13 @@ class ApiService {
     return response.data;
   }
 
-  async cancelSubscription(): Promise<ApiResponse<Subscription>> {
-    const response = await this.client.delete<ApiResponse<Subscription>>('/subscriptions/me');
+  async cancelSubscription(): Promise<ApiResponse<{ end_date: string; days_remaining: number }>> {
+    const response = await this.client.post<ApiResponse<{ end_date: string; days_remaining: number }>>('/subscriptions/me/cancel');
+    return response.data;
+  }
+
+  async reactivateSubscription(): Promise<ApiResponse<Subscription>> {
+    const response = await this.client.post<ApiResponse<Subscription>>('/subscriptions/me/reactivate');
     return response.data;
   }
 
@@ -178,23 +194,23 @@ class ApiService {
           { id: 'pro', name: 'Pro', priceMonthly: 20, priceYearly: 192, features: { teamMembers: 10, analytics: true, prioritySupport: true } },
           { id: 'enterprise', name: 'Enterprise', priceMonthly: 100, priceYearly: 960, features: { teamMembers: 100, analytics: true, prioritySupport: true, customIntegrations: true, customDomainSSO: true } }
         ],
-        error: 'Failed to fetch plans'
+        error: { code: 'FETCH_FAILED', message: 'Failed to fetch plans' }
       } as ApiResponse<any>;
     }
   }
 
-  // ===== Token Management =====
+  // ===== Token Management (in-memory) =====
 
-  private getAccessToken(): string | null {
-    return localStorage.getItem('accessToken');
+  getAccessToken(): string | null {
+    return this.accessToken;
   }
 
-  private setAccessToken(token: string): void {
-    localStorage.setItem('accessToken', token);
+  setAccessToken(token: string | null): void {
+    this.accessToken = token;
   }
 
-  private clearAuth(): void {
-    localStorage.removeItem('accessToken');
+  clearAuth(): void {
+    this.accessToken = null;
   }
 
   isAuthenticated(): boolean {

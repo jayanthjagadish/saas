@@ -1,14 +1,10 @@
-import React from 'react';
-import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { CardElement } from '@stripe/react-stripe-js';
 
 interface Props {
   onChange?: (event: any) => void;
 }
 
 export default function StripeCardElement({ onChange }: Props) {
-  const stripe = useStripe();
-  const elements = useElements();
-
   return (
     <div className="p-4 border rounded-md bg-white">
       <CardElement

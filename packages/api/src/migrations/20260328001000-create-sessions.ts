@@ -1,41 +1,39 @@
-'use strict';
+import { QueryInterface, DataTypes } from 'sequelize';
 
-module.exports = {
-  up: async (queryInterface, Sequelize) => {
-    await queryInterface.createTable('sessions', {
-      id: {
-        type: Sequelize.UUID,
-        defaultValue: Sequelize.literal('(UUID())'),
-        primaryKey: true,
-        allowNull: false,
-      },
-      user_id: {
-        type: Sequelize.UUID,
-        allowNull: false,
-      },
-      revoked: {
-        type: Sequelize.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      expires_at: {
-        type: Sequelize.DATE,
-        allowNull: false,
-      },
-      created_at: {
-        allowNull: false,
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
-      },
-      updated_at: {
-        allowNull: false,
-        type: Sequelize.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
-      },
-    });
-  },
+export async function up(queryInterface: QueryInterface): Promise<void> {
+  await queryInterface.createTable('sessions', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      allowNull: false,
+    },
+    user_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+    revoked: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    expires_at: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    created_at: {
+      allowNull: false,
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+      allowNull: false,
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+  });
+}
 
-  down: async (queryInterface, Sequelize) => {
-    await queryInterface.dropTable('sessions');
-  },
-};
+export async function down(queryInterface: QueryInterface): Promise<void> {
+  await queryInterface.dropTable('sessions');
+}

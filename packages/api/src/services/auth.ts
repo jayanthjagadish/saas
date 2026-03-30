@@ -1,8 +1,11 @@
 import bcryptjs from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
+import crypto from 'crypto';
 import { User } from '../models/User.js';
+import { Session } from '../models/Session.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sendPasswordResetEmail } from './email.js';
 
 export async function registerUser(
   email: string,
@@ -18,8 +21,9 @@ export async function registerUser(
   const user = await User.create({
     email,
     password: hashedPassword,
-    name,
-  });
+    name: name || undefined,
+    verified: false,
+  } as any);
 
   return user;
 }
@@ -44,8 +48,8 @@ export async function authenticateUser(
 export function generateAccessToken(user: User): string {
   return jwt.sign(
     { id: user.id, email: user.email },
-    config.jwt.accessSecret,
-    { expiresIn: config.jwt.accessExpiresIn }
+    config.jwt.accessSecret as string,
+    { expiresIn: config.jwt.accessExpiresIn } as SignOptions
   );
 }
 
@@ -53,8 +57,8 @@ export function generateRefreshToken(user: User, sessionId: string, expiresIn?: 
   const expires = expiresIn || config.jwt.refreshExpiresIn;
   return jwt.sign(
     { id: user.id, sid: sessionId },
-    config.jwt.refreshSecret,
-    { expiresIn: expires }
+    config.jwt.refreshSecret as string,
+    { expiresIn: expires } as SignOptions
   );
 }
 
@@ -66,10 +70,72 @@ export function verifyRefreshToken(token: string): { id: string; sid?: string } 
   }
 }
 
+export async function revokeSession(sessionId: string): Promise<void> {
+  const session = await Session.findByPk(sessionId);
+  if (!session) {
+    throw new AppError(401, 'INVALID_SESSION', 'Session not found');
+  }
+  
+  if (session.revoked) {
+    throw new AppError(401, 'SESSION_REVOKED', 'Session already revoked');
+  }
+  
+  session.revoked = true;
+  await session.save();
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const user = await User.findOne({ where: { email } });
+  
+  // Don't reveal whether user exists (security)
+  if (!user) {
+    return;
+  }
+
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  user.resetPasswordToken = resetToken;
+  user.resetPasswordExpires = expiresAt;
+  await user.save();
+
+  await sendPasswordResetEmail(email, resetToken);
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const user = await User.findOne({ 
+    where: { resetPasswordToken: token } 
+  });
+
+  if (!user) {
+    throw new AppError(400, 'INVALID_TOKEN', 'Invalid or expired reset token');
+  }
+
+  if (!user.resetPasswordExpires || user.resetPasswordExpires.getTime() < Date.now()) {
+    throw new AppError(400, 'EXPIRED_TOKEN', 'Reset token has expired');
+  }
+
+  const hashedPassword = await bcryptjs.hash(newPassword, 12);
+  
+  user.password = hashedPassword;
+  user.resetPasswordToken = null;
+  user.resetPasswordExpires = null;
+  await user.save();
+
+  // Revoke all active sessions for this user
+  await Session.update(
+    { revoked: true },
+    { where: { userId: user.id, revoked: false } }
+  );
+}
+
 export default {
   registerUser,
   authenticateUser,
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
+  revokeSession,
+  requestPasswordReset,
+  resetPassword,
 };

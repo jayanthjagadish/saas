@@ -2,14 +2,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import HomePage from './pages/index';
-import LoginPage from './pages/auth/login';
+import LegacyLoginPage from './pages/auth/login';
+import LoginPage from './pages/LoginPage';
 import SignupPageLegacy from './pages/auth/signup';
 import SignupPage from './pages/SignupPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/auth/forgot-password';
+import ResetPasswordPage from './pages/auth/reset-password';
 import DashboardPage from './pages/dashboard';
 import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import ProtectedRoute from './middleware/ProtectedRoute';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -28,14 +32,17 @@ function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/auth/login" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/login" element={<LegacyLoginPage />} />
             <Route path="/auth/signup" element={<SignupPageLegacy />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify" element={<VerifyEmailPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/dashboard/subscription" element={<SubscriptionPage />} />
+            <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/dashboard/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
           </Routes>
         </Layout>
       </Router>

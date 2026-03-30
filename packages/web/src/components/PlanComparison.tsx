@@ -4,7 +4,7 @@ import api from '../services/api';
 
 const PlanComparison: React.FC = () => {
   const [annual, setAnnual] = useState(false);
-  const { data: plansResp, isLoading, error } = useQuery(['plans'], () => api.getPlans());
+  const { data: plansResp, isLoading, error } = useQuery({ queryKey: ['plans'], queryFn: () => api.getPlans() });
   const plans = plansResp?.data ?? [
     { id: 'free', name: 'Free', priceMonthly: 0, priceYearly: 0, features: { teamMembers: 3 } },
     { id: 'pro', name: 'Pro', priceMonthly: 20, priceYearly: 192, features: { teamMembers: 10, analytics: true, prioritySupport: true } },
@@ -12,7 +12,7 @@ const PlanComparison: React.FC = () => {
   ];
 
   const isAuth = api.isAuthenticated();
-  const { data: subResp } = useQuery(['subscription'], () => api.getSubscription(), { enabled: isAuth });
+  const { data: subResp } = useQuery({ queryKey: ['subscription'], queryFn: () => api.getSubscription(), enabled: isAuth });
   const currentPlanId = subResp?.data?.planId ?? null;
 
   const priceFor = (plan: any) => {

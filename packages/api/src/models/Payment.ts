@@ -1,12 +1,12 @@
 import { DataTypes, Model, ForeignKey } from 'sequelize';
 import sequelize from '../config/database.js';
-import { User } from './User.js';
+import Subscription from './Subscription.js';
 
 export type PaymentStatus = 'succeeded' | 'failed' | 'pending';
 
 export interface IPayment {
   id: string;
-  userId: string;
+  subscriptionId?: string | null;
   stripePaymentIntentId: string;
   amount: number;
   currency: string;
@@ -18,7 +18,7 @@ export interface IPayment {
 
 export class Payment extends Model<IPayment> implements IPayment {
   declare id: string;
-  declare userId: ForeignKey<User['id']>;
+  declare subscriptionId?: ForeignKey<Subscription['id']>;
   declare stripePaymentIntentId: string;
   declare amount: number;
   declare currency: string;
@@ -35,15 +35,17 @@ Payment.init(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
-    userId: {
+    subscriptionId: {
       type: DataTypes.UUID,
-      allowNull: false,
-      references: { model: User, key: 'id' },
+      allowNull: true,
+      references: { model: Subscription, key: 'id' },
+      field: 'subscription_id',
     },
     stripePaymentIntentId: {
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
+      field: 'stripe_payment_intent_id',
     },
     amount: {
       type: DataTypes.DECIMAL(10, 2),
@@ -60,6 +62,16 @@ Payment.init(
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
   },
   {
