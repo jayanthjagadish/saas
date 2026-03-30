@@ -7,7 +7,7 @@ import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscr
  * Manages JWT access/refresh token flow
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 class ApiService {
   private client: AxiosInstance;
@@ -39,6 +39,12 @@ class ApiService {
         const originalRequest = error.config as AxiosError['config'] & { _retry?: boolean };
 
         if (error.response?.status === 401 && !originalRequest?._retry) {
+          // Don't intercept auth endpoint failures — let components handle them
+          const url = originalRequest?.url || '';
+          if (url.includes('/auth/login') || url.includes('/auth/signup') || url.includes('/auth/refresh')) {
+            return Promise.reject(error);
+          }
+
           if (originalRequest) {
             originalRequest._retry = true;
           }
@@ -76,7 +82,19 @@ class ApiService {
 
   // New signup endpoint for US-001 (keeps existing register for compatibility)
   async signup(payload: { email: string; password: string; company_name: string }): Promise<ApiResponse<unknown>> {
-    const response = await this.client.post<ApiResponse<unknown>>('/auth/signup', payload);
+    const response = await this.client.post<any>('/auth/signup', payload);
+    // Backend returns { user_id, email, message } instead of ApiResponse format
+    // Transform it to ApiResponse format for consistency
+    if (response.data.user_id) {
+      return {
+        success: true,
+        data: {
+          user_id: response.data.user_id,
+          email: response.data.email,
+          message: response.data.message,
+        }
+      };
+    }
     return response.data;
   }
 

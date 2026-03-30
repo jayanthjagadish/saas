@@ -30,13 +30,20 @@ const SignupPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await api.signup({ email, password, company_name: companyName });
-      setMessage('Check your email to verify your account.');
+      const response = await api.signup({ email, password, company_name: companyName });
+      if (response.success) {
+        setMessage((response.data as any)?.message || 'Check your email to verify your account.');
+      } else {
+        setMessage('An unexpected error occurred. Please try again.');
+      }
     } catch (err: any) {
       const status = err?.response?.status;
       const data = err?.response?.data;
+      
       if (status === 409) {
         setErrors({ email: 'Email already registered' });
+      } else if (status === 400 && data?.error === 'WEAK_PASSWORD') {
+        setErrors({ password: data?.message || 'Password does not meet requirements' });
       } else if (data?.errors) {
         // Map field errors
         const fieldMap: Record<string, string> = {};
@@ -45,7 +52,7 @@ const SignupPage: React.FC = () => {
         }
         setErrors(fieldMap);
       } else {
-        setMessage('An unexpected error occurred. Please try again.');
+        setMessage(data?.message || 'An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);

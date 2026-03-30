@@ -27,14 +27,16 @@ export default function LoginPage() {
       navigate('/dashboard');
     } catch (err: any) {
       const status = err?.response?.status;
+      const message = err?.response?.data?.message;
+      
       if (status === 403) {
-        setError('Please verify your email before logging in. Resend verification?');
+        setError(message || 'Please verify your email before logging in. Resend verification?');
       } else if (status === 401) {
-        setError('Invalid email or password');
+        setError(message || 'Invalid email or password');
       } else if (status === 429) {
         setError('Too many login attempts. Try again later.');
       } else {
-        setError(err?.message || 'An error occurred');
+        setError(message || err?.message || 'An error occurred');
       }
     } finally {
       setLoading(false);
@@ -59,7 +61,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4" aria-label="login-form">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-label="login-form" noValidate>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email
