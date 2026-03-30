@@ -1186,3 +1186,12 @@ Checking both prevents silent failures if the backend only sends one shape.
 - GAP-006: verify2FA/disable2FA now typed as { enabled: boolean } not { message: string }
 - GAP-007: getPlans() now uses real backend response (removed hardcoded fallback)
 - GAP-002: SubscriptionStatus type expanded to all 8+ fields; UserProfile.id: number → string
+
+## 2026-03-30
+
+### 2026-03-30T22-02-19: User directive
+**By:** jayanth.jagadish (via Copilot)
+**What:** Automation tester (Baskar) must create test scripts ONLY after the frontend developer (Senthil) has completed their work. Baskar waits for Senthil's handoff signal before starting any test scripting.
+**Why:** User request — prevents Baskar from writing tests against incomplete or changing UI, reducing rework and selector mismatches.
+
+

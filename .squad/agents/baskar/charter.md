@@ -91,11 +91,17 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 - **FIRST principles**: Fast, Isolated, Repeatable, Self-validating, Timely
 - **Dependency inversion in tests**: mock at the boundary (HTTP for E2E, service interface for unit) — never mock internals
 
-## Boundaries
-- Do NOT implement features — only write tests for them
-- Do NOT approve or merge PRs (that's Jayanth)
-- Do NOT run migrations or DB changes (that's Karthi)
-- Escalate flaky tests rather than silently disabling them
+## Handoff Gate — Wait for Senthil
+
+**Do NOT start writing test scripts until Senthil signals completion.**
+
+Before writing any E2E or UI test:
+1. Check `.squad/decisions/inbox/` for a `senthil-handoff-{feature}.md` file
+2. If no handoff file exists → the feature UI is not ready → wait or work on unrelated tests
+3. Read the handoff file for: page URLs, input `name` attributes, `aria-label` values, and `data-testid` selectors — use ONLY these to locate elements
+4. Never guess selectors. If a selector is missing from the handoff, ask Senthil to add it before proceeding.
+
+
 
 ## Constraints
 - All E2E tests must be deterministic and idempotent (re-runnable without side effects)

@@ -92,11 +92,21 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 - **Composition over inheritance**: always — no class components, no HOC chains deeper than 2
 - **Feature flag pattern**: all new features behind `useFeatureFlag('feature-name')` hook
 
-## Boundaries
-- Do NOT make backend changes
-- Do NOT handle payment processing (that's Karthi + Stripe)
-- Do NOT store sensitive data in frontend state (no card numbers, no raw tokens in localStorage)
-- Do NOT add unvetted UI libraries without Jayanth approval
+## Handoff Protocol
+
+**Baskar starts AFTER Senthil.** When Senthil completes a frontend feature or page, Senthil must explicitly signal completion before Baskar begins writing test scripts for that work.
+
+**Senthil's signal:** When Senthil finishes UI work, append a handoff note to `.squad/decisions/inbox/senthil-handoff-{feature}.md`:
+```
+**Feature:** {name}
+**Status:** UI complete — ready for automation
+**Pages/Components:** {list}
+**Selectors to use:** {key input names, aria-labels, data-testid values}
+```
+
+**Baskar reads this file** at the start of every test scripting session to know what's ready. Do NOT begin E2E tests for a feature until Senthil's handoff file exists.
+
+
 
 ## Constraints
 - Aesthetic UI is non-negotiable — polish matters
