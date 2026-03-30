@@ -1,33 +1,9 @@
 {
   "agents": [
-    {
-      "persistent_name": "Keaton",
-      "universe": "oceans-eleven",
-      "created_at": "2026-03-28T02:39:48Z",
-      "legacy_named": false,
-      "status": "active"
-    },
-    {
-      "persistent_name": "Dallas",
-      "universe": "oceans-eleven",
-      "created_at": "2026-03-28T02:39:48Z",
-      "legacy_named": false,
-      "status": "active"
-    },
-    {
-      "persistent_name": "Fenster",
-      "universe": "oceans-eleven",
-      "created_at": "2026-03-28T02:39:48Z",
-      "legacy_named": false,
-      "status": "active"
-    },
-    {
-      "persistent_name": "Hockney",
-      "universe": "oceans-eleven",
-      "created_at": "2026-03-28T02:39:48Z",
-      "legacy_named": false,
-      "status": "active"
-    },
+    {"persistent_name": "Jayanth", "universe": "custom", "created_at": "2026-03-28T02:39:48Z", "legacy_named": true, "status": "active"},
+    {"persistent_name": "Senthil", "universe": "custom", "created_at": "2026-03-28T02:39:48Z", "legacy_named": true, "status": "active"},
+    {"persistent_name": "Karthi", "universe": "custom", "created_at": "2026-03-28T02:39:48Z", "legacy_named": true, "status": "active"},
+    {"persistent_name": "Auxi", "universe": "custom", "created_at": "2026-03-28T02:39:48Z", "legacy_named": true, "status": "active"},
     {
       "persistent_name": "Scribe",
       "universe": "utility",

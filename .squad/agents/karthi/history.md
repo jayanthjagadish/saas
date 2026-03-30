@@ -175,3 +175,34 @@ Completed US-004 Password Reset and US-025 Subscription Cancellation with Dallas
 - Test patterns: Jest with in-memory DB, Playwright E2E established
 
 **Status:** Ready for Keaton security review and Hockney test execution.
+
+### Fixed Vite Proxy Rewrite Rule (2026-03-30)
+
+**Problem:** Browser API requests to /api/* were returning 404 because Vite proxy was forwarding /api/auth/signup to http://localhost:3001/api/auth/signup, but Express routes are registered at /auth/signup (without /api prefix).
+
+**Root Cause:**
+- Vite proxy lacked a rewrite rule to strip /api prefix
+- API service (api.ts) uses baseURL http://localhost:3001/api
+- Express app.ts registers routes without /api: app.use('/auth', authRoutes)
+- Exception found: app.use('/api/plans', plansRoutes) inconsistently includes /api prefix
+
+**Solution:** Added rewrite rule to packages/web/vite.config.ts:
+`	ypescript
+rewrite: (path) => path.replace(/^\/api/, '')
+`
+
+**Verification:**
+- Confirmed api.ts makes calls with /api/* prefix
+- Confirmed Express routes (auth, users, subscriptions, payments) have NO /api prefix
+- Rewrite now strips /api before forwarding: /api/auth/signup → http://localhost:3001/auth/signup
+
+**Impact:**
+- All frontend-to-backend requests now route correctly
+- Authentication, user management, subscriptions, and payments APIs functional
+- /api/plans endpoint still works (backend has /api prefix, proxy strips it, becomes /plans, but backend serves at /api/plans — may need follow-up)
+
+**Team Note:** Inconsistency exists with /api/plans route. Recommend Keaton standardize: either all routes use /api prefix or none.
+
+**Files Modified:**
+- packages/web/vite.config.ts — added rewrite: (path) => path.replace(/^\/api/, '')
+

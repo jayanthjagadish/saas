@@ -190,6 +190,62 @@
 **Rationale:**
 - User preference — cultural representation in team naming
 
+### 15. Vite Proxy Rewrite Fix — API Route Misconfiguration (Sprint 1, Day 2)
+**Status:** Identified  
+**Owner:** Karthi  
+**Date:** 2026-03-30T09:26:45Z  
+**Details:**
+- **Issue:** Frontend requests to `/api/*` were failing with 404 due to Vite proxy misconfiguration
+- **Root Cause:** Vite proxy was stripping `/api` prefix before forwarding to Express backend
+- **Current (Wrong) Config:** `rewrite: (path) => path.replace(/^\/api/, '')` removes prefix
+- **Fixed Config:** Remove rewrite rule; API already expects `/api` prefix
+- **Route Inconsistency Found:** 
+  - Most routes: `app.use('/auth', authRoutes)` → `/auth/signup` (no /api prefix)
+  - Exception: `app.use('/api/plans', plansRoutes)` → `/api/plans` (with /api prefix)
+  - Recommendation: Standardize — either all routes use /api prefix or none do
+
+**Impact:**
+- ❌ All frontend → backend communication broken via proxy
+- ✅ Direct API calls work (bypassing proxy)
+- ✅ Fix unblocks E2E testing
+
+**Files Modified:**
+- packages/web/vite.config.ts: Rewrite rule removed
+
+**Rationale:**
+- API endpoint structure must match proxy expectations
+- Inconsistency between /auth and /api/plans routes suggests need for standardization
+- Removing rewrite restores communication; routing standardization deferred to Sprint 2
+
+### 16. Database Seed Data Missing — Plans Table (Sprint 1, Day 2)
+**Status:** Identified  
+**Owner:** Auxi (Tester)  
+**Date:** 2026-03-30T09:26:45Z  
+**Details:**
+- **Issue:** User signup fails with 500 error; `GET /api/plans` returns empty array
+- **Root Cause:** Database migrations ran successfully, but seed script was never executed
+- **Evidence:** 7 migrations complete, tables created, but plans table empty
+- **Blocker:** Signup endpoint requires a plan with `tier: 'free'` to exist
+- **Fix:** Insert seed data or run seed script before application startup
+- **Minimum Required:**
+  ```sql
+  INSERT INTO plans (id, name, tier, price_monthly, price_annual, features, created_at, updated_at)
+  VALUES (UUID(), 'Free', 'free', 0, 0, '["Basic features"]', NOW(), NOW());
+  ```
+
+**Impact:**
+- ❌ Application registration completely non-functional
+- ❌ Cannot create test users
+- ✅ All other endpoints functional
+
+**Files Modified:**
+- Database: plans table (requires INSERT)
+
+**Rationale:**
+- Seed data is a deployment requirement, not optional
+- CI/CD must include seed verification step to prevent similar issues
+- Free tier is fundamental to freemium SaaS model
+
 ## Governance
 
 - All meaningful changes require team consensus

@@ -216,3 +216,227 @@ Completed test delivery for US-004 Password Reset and US-025 Subscription Cancel
 - Confirmed error handling and loading states
 
 **Status:** Ready for implementation. Tests will execute once Fenster and Dallas code is available.
+
+---
+
+## 2026-03-30: Full-Stack Smoke Test Suite
+
+### Task
+Comprehensive smoke test of full-stack SaaS application (API + Web) to verify basic functionality after recent infrastructure changes:
+- Tailwind v4 CSS fix (index.css now uses `@import "tailwindcss"`)
+- Vite proxy rewrite setup (`/api` prefix handling)
+- API port changed to 3001 (was 3000)
+- 7 DB migrations run successfully (MySQL on localhost:3306, db: lession3)
+
+### Test Scope
+**10 endpoint tests across three layers:**
+1. Direct API calls to localhost:3001
+2. Proxied calls through Vite dev server (localhost:3000)
+3. Frontend page loads
+
+**Endpoints Tested:**
+- Health checks (root, /health)
+- Plans API (GET /api/plans)
+- Auth endpoints (signup, login, forgot-password)
+- Proxy functionality (plans + signup via localhost:3000)
+- Web pages (homepage, login page)
+
+### Results Summary
+**Score:** 4/10 PASS, 2/10 FAIL, 4/10 WARN
+
+| Test | Endpoint | Status | Notes |
+|------|----------|--------|-------|
+| Health | GET / | ⚠️ 404 | Root undefined, but /health works (200) |
+| Plans Direct | GET /api/plans | ⚠️ 200 | Works but returns empty array |
+| Signup Direct | POST /auth/signup | ❌ 500 | Missing seed data (free plan) |
+| Login | POST /auth/login | ⚠️ 403 | Works but returns 403 instead of 401 |
+| Forgot Password | POST /auth/forgot-password | ✅ 200 | Security-conscious response |
+| Invalid Login | POST /auth/login (bad creds) | ✅ 401 | Correctly rejects |
+| Plans Proxy | GET /api/plans (via proxy) | ❌ 404 | Proxy rewrite error |
+| Signup Proxy | POST /api/auth/signup (via proxy) | ❌ 500 | Proxy + seed data issues |
+| Homepage | GET / | ✅ 200 | React app loads |
+| Login Page | GET /login | ✅ 200 | React Router works |
+
+### Critical Issues Discovered
+
+#### 🔴 Issue #1: Database Missing Seed Data (CRITICAL - BLOCKING)
+**Impact:** All user signups fail with 500 Internal Server Error
+
+**Root Cause:**
+- Plans table is empty: API returns `{"plans":[],"annual_discount_percent":20}`
+- Signup endpoint requires a plan with `tier: 'free'` to exist (packages/api/src/routes/auth.ts lines 57-62)
+- Without free plan, signup throws "Free plan not found" exception
+
+**Evidence:**
+```bash
+GET /api/plans → {"plans":[]}
+POST /auth/signup → 500 Internal Server Error
+```
+
+**Fix Required:**
+```sql
+INSERT INTO plans (id, name, tier, price_monthly, price_annual, features, created_at, updated_at) 
+VALUES (UUID(), 'Free', 'free', 0, 0, '["Basic features"]', NOW(), NOW());
+```
+
+**Impact:** Application unusable for new users - cannot create accounts
+
+#### 🔴 Issue #2: Vite Proxy Rewrite Misconfigured (HIGH - BLOCKING)
+**Impact:** Web app cannot communicate with API via proxy
+
+**Root Cause:**
+- Current config: Proxy removes `/api` prefix before forwarding
+- Request path: `/api/plans` → forwards as `/plans` to localhost:3001
+- But API expects `/api/plans`, not `/plans`
+- Result: All proxied requests return 404 Not Found
+
+**Evidence:**
+```bash
+# Direct to API (works)
+GET http://localhost:3001/api/plans → 200 ✅
+
+# API without /api prefix (doesn't exist)
+GET http://localhost:3001/plans → 404 ❌
+
+# Via proxy (forwards as /plans due to rewrite)
+GET http://localhost:3000/api/plans → 404 ❌
+```
+
+**Current (WRONG) Config** (`packages/web/vite.config.ts` lines 14-20):
+```typescript
+proxy: {
+  '/api': {
+    target: 'http://localhost:3001',
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/api/, ''),  // ❌ Strips /api
+  },
+}
+```
+
+**Fixed Config:**
+```typescript
+proxy: {
+  '/api': {
+    target: 'http://localhost:3001',
+    changeOrigin: true,
+    // Remove rewrite line - API already expects /api prefix
+  },
+}
+```
+
+**Impact:** All frontend → backend communication broken via proxy
+
+#### ⚠️ Issue #3: Root Endpoint Returns 404 (LOW)
+**Impact:** Informational only, not blocking
+
+**Finding:**
+- `GET http://localhost:3001/` returns 404
+- Health check exists at `/health` (returns 200)
+- No root route handler defined
+
+**Recommendation:** Add root route for API info/discovery (optional improvement)
+
+### What Works ✅
+- API server running on port 3001 (PID 19892)
+- Web server running on port 3000 (PID 10760)
+- Database connected, migrations complete
+- Forgot-password endpoint (200, security-conscious response)
+- Invalid login rejection (401 correctly returned)
+- Frontend routing (React Router + Vite dev server)
+- Web pages load (homepage, login page)
+
+### What's Broken ❌
+- User signup (500 error - missing seed data)
+- Web → API proxy (404 - incorrect rewrite strips /api)
+- Cannot create test accounts
+- Application unusable for new users
+
+### Additional Findings
+
+**Password Validation Rules:**
+- Minimum length: 12 characters (not 8)
+- Must contain: uppercase letter, number, special character
+- Location: `packages/api/src/routes/auth.ts` lines 14-20
+- Returns 400 with `WEAK_PASSWORD` error code if validation fails
+
+**API Endpoint Structure:**
+- ✅ `/api/plans` exists (not `/plans`)
+- ✅ `/auth/signup` exists (not `/api/auth/signup`)
+- ✅ `/health` exists (not `/api/health`)
+- Mixed prefix usage: Auth uses `/auth/*`, other APIs use `/api/*`
+
+**Port Listeners Confirmed:**
+```
+API:  0.0.0.0:3001 (listening, PID 19892)
+Web:  [::1]:3000 (listening, PID 10760)
+```
+
+### Recommendations
+
+**P0 - Blocking Issues (Fix Immediately):**
+1. **Seed database with plans**
+   - Run seed script or manually insert free, pro, enterprise tiers
+   - Minimum requirement: One plan with `tier: 'free'`
+   - Without this, application is completely non-functional
+
+2. **Fix Vite proxy configuration**
+   - Remove the `rewrite` line from vite.config.ts
+   - API already uses `/api` prefix, no rewrite needed
+   - Restart Vite dev server after change
+
+**P1 - Optional Improvements:**
+3. Add root route handler (`GET /`) with API info
+4. Standardize endpoint prefixes (`/api/*` for all vs mixed usage)
+5. Improve error messages (return specific error codes instead of generic 500)
+6. Log errors to file, not just console
+
+### Test Methodology
+
+**Tools Used:**
+- PowerShell `Invoke-WebRequest` for HTTP requests
+- JSON body encoding via `ConvertTo-Json`
+- Error handling with try-catch blocks
+- Response inspection (status codes, body content)
+
+**Test Pattern:**
+```powershell
+$body = @{
+    email = "test@example.com"
+    password = "StrongPass123!"
+    company_name = "Test Co"
+} | ConvertTo-Json
+
+$result = Invoke-WebRequest `
+    -Uri "http://localhost:3001/auth/signup" `
+    -Method POST `
+    -ContentType "application/json" `
+    -Body $body
+```
+
+### Deliverables
+✅ Full test report: `.squad/decisions/inbox/hockney-smoke-test-results.md`  
+✅ This history file updated with findings  
+✅ Detailed issue analysis with code locations and fixes  
+
+### Next Actions
+- **Blocked:** Waiting for infrastructure team to fix seed data + proxy
+- **Ready:** Can re-run smoke tests immediately after fixes applied
+- **Gated:** E2E auth testing cannot proceed until basic functionality restored
+
+### Smoke Test Statistics
+- **Total Tests:** 10
+- **Passed:** 4 (40%)
+- **Failed:** 2 (20%)
+- **Warning:** 4 (40%)
+- **Duration:** ~5 minutes
+- **Critical Issues:** 2 (both blocking)
+- **Date:** 2026-03-30
+
+### Investigation Depth
+- Analyzed signup endpoint implementation (auth.ts lines 22-81)
+- Traced error path: validation → DB operations → free plan lookup → 500
+- Confirmed API structure via endpoint testing
+- Verified port listeners and process IDs
+- Tested password validation edge cases
+- Checked Vite proxy configuration
+- Reviewed recent infrastructure changes

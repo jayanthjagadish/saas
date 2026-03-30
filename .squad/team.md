@@ -12,10 +12,10 @@
 
 | Name | Role | Charter | Status |
 |------|------|---------|--------|
-| Keaton | Lead | `.squad/agents/keaton/charter.md` | active |
-| Dallas | Frontend Dev | `.squad/agents/dallas/charter.md` | active |
-| Fenster | Backend Dev | `.squad/agents/fenster/charter.md` | active |
-| Hockney | Tester | `.squad/agents/hockney/charter.md` | active |
+| Jayanth | Lead | `.squad/agents/jayanth/charter.md` | active |
+| Senthil | Frontend Dev | `.squad/agents/senthil/charter.md` | active |
+| Karthi | Backend Dev | `.squad/agents/karthi/charter.md` | active |
+| Auxi | Tester | `.squad/agents/auxi/charter.md` | active |
 | Basher | Release Engineer | `.squad/agents/basher/charter.md` | active |
 | Ralph | Work Monitor | — | active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | active |
