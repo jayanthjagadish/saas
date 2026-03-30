@@ -455,6 +455,159 @@
 **Files Modified:** Backlog created at .squad/backlog.md
 
 ### 23. EPIC-3 & EPIC-4 Billing Integration Complete (Sprint 2)
+
+---
+
+## Sprint 2 Decisions (Inbox Archive)
+
+### 24. User Directive: Auto-Advance on Green Tests
+
+**Date:** 2026-03-30T19-14-09Z  
+**By:** jayanth.jagadish (via Copilot)  
+**Status:** Approved  
+**Decision:** After each feature implementation batch, the orchestrator must automatically run the Playwright E2E test suite. If all tests pass, proceed immediately to implement the next pending features from the backlog — no user confirmation needed. If tests fail, fix failures before moving forward.  
+**Rationale:** User request — continuous delivery pipeline: implement → test → auto-advance → repeat until backlog is clear.
+
+---
+
+### 25. Team Invite Flow (US-031/US-032/US-033)
+
+**Date:** 2026-04-01  
+**Author:** Karthi (Backend Engineer)  
+**Status:** Implemented
+
+#### Decisions Made
+
+**1. Token Generation & Expiry**
+- Invite tokens are 64-character hex strings generated via `crypto.randomBytes(32).toString('hex')`
+- Expiry: **7 days** from creation time
+- Token is stored on the `TeamInvite` model with a unique index
+
+**2. Email Match Enforced at Acceptance**
+- When a user calls `POST /teams/invites/:token/accept`, the authenticated user's email **must match** `invite.invitedEmail`
+- Returns `403 EMAIL_MISMATCH` if they differ
+- Prevents a different logged-in user from accepting an invite meant for someone else
+
+**3. Member Limit Checked Twice (creation + acceptance)**
+- **At invite creation** (`POST /teams/me/invites`): current member count vs `Plan.max_members` — returns `422 MEMBER_LIMIT_REACHED` if at capacity
+- **At acceptance** (`POST /teams/invites/:token/accept`): limit re-checked against team owner's subscription at the moment of acceptance, guarding against plan downgrades between invite and acceptance
+- `max_members` defaults to `1` if no active subscription found
+
+**4. Role Enforcement**
+- Only `owner` or `admin` team members can create invites or remove members
+- `owner` role members cannot be removed via the delete endpoint (`403 CANNOT_REMOVE_OWNER`)
+
+**5. Idempotency Guards**
+- `409 INVITE_ALREADY_PENDING` if a pending invite already exists for the same (team, email)
+- `409 ALREADY_A_MEMBER` if the invited email already belongs to a team member
+- If already a member at acceptance time, invite is marked `accepted` and `{ alreadyMember: true }` returned (idempotent)
+
+**6. Status Lifecycle**
+- `pending` → `accepted` | `declined` | `expired`  
+- Expiry is set lazily: when an expired invite is accessed via accept, status is updated to `expired` and `410 INVITE_EXPIRED` is returned.
+
+---
+
+### 26. Fix React White-Screen Crash — Dashboard IIFE
+
+**Author:** Senthil (Frontend Engineer)  
+**Date:** 2025-07-15  
+**Requested by:** jayanth.jagadish  
+**Status:** Fixed
+
+**Root Cause:** `packages/web/src/pages/dashboard.tsx` used an IIFE (immediately invoked function expression) directly inside JSX to render the Overview Card. IIFEs inside JSX are not React components; they execute imperatively during render but React cannot track them as component boundaries. Any unhandled exception propagates directly to the root render call with no error boundary to catch it. In React 18 StrictMode, components are invoked twice in development; the IIFE runs twice on every render cycle with no isolation, causing white-screen crashes.
+
+**Fix Applied:** Extracted the IIFE into a proper named React component `DashboardOverviewCard` and replaced the call site with the component reference.
+
+**Verification:**
+- `tsc --noEmit` → exit 0 (no TypeScript errors)  
+- `vite build` → exit 0 (150 modules, build successful)
+
+---
+
+### 27. Frontend API Contract Notes (Team & Password Reset)
+
+**Author:** Senthil (Frontend)  
+**Date:** 2026-03-30  
+**Related stories:** US-031, US-032, US-004  
+**Status:** Documented
+
+**Team API Endpoints (US-031/032)** — All authenticated via Bearer token (JWT interceptor)
+- `GET /teams/me` → `Team | null`
+- `GET /teams/me/invites` → `TeamInvite[]`
+- `POST /teams/me/invites` (body: `{ email }`) → `{ id, email, token }`
+  - Error codes: `MEMBER_LIMIT_REACHED`, `INVITE_ALREADY_PENDING`, `ALREADY_A_MEMBER`, `INSUFFICIENT_ROLE`
+- `DELETE /teams/me/members/:memberId` → `{ removed: boolean }`
+- `POST /teams/invites/:token/accept` (public, no auth) → `{ joined: boolean }`
+  - Error codes: `INVITE_NOT_FOUND`, `INVITE_EXPIRED`, `EMAIL_MISMATCH`, `MEMBER_LIMIT_REACHED`
+
+**Password Reset Endpoints (US-004)**
+- `POST /auth/forgot-password` (body: `{ email }`) → `{ message }` (always succeeds for security)
+- `POST /auth/reset-password` (body: `{ token, password }`) → `{ message }`
+  - Error codes: `INVALID_TOKEN`, `TOKEN_EXPIRED`
+
+**Note:** Frontend error message mapping lives in the component, not the API service layer. `forgotPassword` and `resetPassword` now return typed `ApiResponse` instead of `void`.
+
+---
+
+### 28. US-005 Profile Management API (Backend)
+
+**Author:** Karthi (Backend Engineer)  
+**Date:** 2026-03-30  
+**Status:** Implemented
+
+**Decisions Made:**
+
+1. **`avatarUrl` added to User model (not a separate table)**  
+   Stored as nullable STRING on the `users` table with column name `avatar_url`. This is sufficient for a URL reference (e.g., S3 or CDN link) and avoids over-engineering at this stage.
+
+2. **Avatar upload is a stub (501)**  
+   `POST /users/me/avatar` returns `{ success: false, error: "AVATAR_UPLOAD_NOT_CONFIGURED" }` with HTTP 501. Reason: no storage backend (S3/GCS) is configured. This endpoint can be wired up when object storage is provisioned.
+
+3. **Email change triggers re-verification**  
+   When `PUT /users/me` changes the email, the user's `verified` flag is set to `false`, a new `emailVerifiedToken` is generated, and `sendVerificationEmail` is called (writes to `dev-emails/` in non-prod). This preserves the existing verification flow and prevents account takeover via unverified email change.
+
+4. **Route kept in `routes/users.ts`, not `routes/profile.ts`**  
+   `app.ts` already mounts `users.ts` at `/users` and the stub file was there. No new route file or `app.ts` change required.
+
+5. **Zod used for input validation**  
+   Matches the pattern used in `routes/auth.ts`. Name validated as `string().max(100)`, email as `string().email()`.
+
+---
+
+### 29. US-005 Profile Management Test Coverage
+
+**Author:** Baskar (QA Automation)  
+**Date:** 2026-03-30  
+**Status:** Ready for review  
+**Related Story:** US-005
+
+**Context:** Profile management (GET/PUT `/users/me` and the `/profile` frontend page) is being built in parallel by Karthi (backend) and Senthil (frontend). Tests were written against the agreed API spec before the feature landed, enabling CI to gate the merge once the feature is complete.
+
+**Decisions Made:**
+
+1. **Graceful acceptance for `PUT /users/me` status codes**  
+   The spec says the invalid-email rejection returns 4xx. Both `400` and `422` are accepted in the test, consistent with the pattern in `tests/api/invite.test.ts`. Karthi should confirm the exact error code so the test can be tightened.
+
+2. **E2E name-update assertion uses dual-path check**  
+   The save success assertion checks for a visible toast/message **or** the input retaining the new value. This tolerates UI variations Senthil may choose (toast vs. inline confirmation) without requiring renegotiation.
+
+3. **E2E email validation uses browser validity + visible error**  
+   For invalid-email validation, the test accepts either a native browser `input.validity.valid === false` or a visible error message. This avoids coupling to Senthil's exact copy.
+
+4. **No shared auth helper introduced**  
+   The existing pattern (inline `beforeAll` / `beforeEach` login calls) was followed to stay consistent with the rest of the test suite. A shared helper can be extracted later if the number of test files grows.
+
+**Files Created:**
+- `tests/api/profile.test.ts`
+- `tests/e2e/profile.spec.ts`
+
+**Open Questions:**
+| # | Question | Owner |
+|---|----------|-------|
+| 1 | What exact HTTP status code does `PUT /users/me` return for an invalid email? | Karthi |
+| 2 | Does the Profile page use a toast, inline message, or other feedback for save success? | Senthil |
+| 3 | Is the nav profile link selector stable enough to add a nav-link assertion test? | Senthil |
 **Status:** Completed  
 **Owner:** Copilot (Senthil + Karthi collaboration)  
 **Date:** 2026-03-31  

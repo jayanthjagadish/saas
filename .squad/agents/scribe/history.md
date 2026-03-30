@@ -28,3 +28,16 @@ Staged and committed 26 files (907 insertions, 82 deletions) covering:
 - Quick Actions bar on dashboard
 - All new routes wired in `App.tsx`
 - E2E/API tests: `team.spec.ts`, `invite.test.ts`, `password-reset.test.ts`
+
+### 2026-03-30 — Sprint 2 Password Reset QA & Pipeline Gate
+**Commit:** `f99df52` — `fix: password reset field alignment + smoke tests green`
+
+Applied Karthi's password reset fixes:
+- Fixed `resetPasswordSchema` field name: `newPassword` → `password` (frontend alignment)
+- Fixed reset email URL redirect to `localhost:3000/auth/reset-password`
+- Merged 4 inbox decisions into `.squad/decisions.md` (team invite flow, IIFE crash fix, API contracts)
+- Deleted inbox directory
+- Smoke tests: **7/7 passing** ✅
+- Auth-flows tests: **3/3 passing** ✅
+- Pipeline gate: **GREEN** ✅
+- Sprint 2 team trio (US-004, US-031/032/033) validated and ready for deployment
