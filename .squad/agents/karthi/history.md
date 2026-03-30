@@ -413,3 +413,16 @@ Baskar's E2E tests revealed 4 critical auth bugs:
 - API contract change documented for Dallas
 - Baskar can re-run tests after environment cleanup
 
+6. **Team Model Design (US-030):**
+   - Team owned by a user (ownerId FK); owner also added as TeamMember with role 'owner' on signup
+   - TeamMember has unique index on (team_id, user_id) to prevent duplicate memberships
+   - Auto-team name derived from company_name or email prefix
+
+7. **Dashboard API (US-040):**
+   - GET /dashboard/me/dashboard aggregates user, subscription, and team data in one call
+   - Subscription status filter: active | cancellation_pending | past_due
+   - Plan.max_members used as team member limit
+
+### Team Coordination (US-030/US-040)
+- Decision document created: `.squad/decisions/inbox/karthi-team-model.md`
+

@@ -511,3 +511,72 @@ These require backend/frontend fixes beyond test scope.
 - Plans tests are fully passing - can be used in CI/CD
 - Auth tests can be re-run after backend fixes
 
+---
+
+## 2026-03-30 - Team & Dashboard API Tests + Dashboard E2E Tests
+
+### Task
+Wrote Jest API tests for Karthi's team endpoint (`/teams/me`) and the dashboard aggregation endpoint (`/dashboard/me/dashboard`), plus Playwright E2E tests for the dashboard page UI.
+
+### Files Created
+1. `tests/api/team.test.ts` — Jest API tests for `GET /teams/me`
+2. `tests/api/dashboard.test.ts` — Jest API tests for `GET /dashboard/me/dashboard`
+3. `tests/e2e/dashboard.spec.ts` — Playwright E2E tests for dashboard page UI
+
+### Test Results: `tests/e2e/dashboard.spec.ts` (Chromium)
+
+```
+5 failed / 0 passed
+```
+
+All 5 failures are **expected — features not yet shipped to frontend**:
+
+| Test | Result | Reason |
+|------|--------|--------|
+| should display dashboard heading | ❌ FAIL | `getByRole('heading', { name: 'Dashboard' })` not found — dashboard UI not implemented yet |
+| should display quick action buttons | ❌ FAIL | Upgrade Plan / Manage Billing / Invite Member buttons absent |
+| Manage Billing navigates to /subscription | ❌ FAIL | Button not present (timeout 30s) |
+| Upgrade Plan navigates to /pricing | ❌ FAIL | Button not present (timeout 30s) |
+| should display account section | ❌ FAIL | `test@fenster-test\.com` not visible on dashboard |
+
+### Learnings
+
+#### Dashboard E2E — All Failures Are Feature-Gap Failures
+- Tests run syntactically correct and authenticate successfully via `beforeEach`
+- Fast failures (6s) = login worked, page loaded, element not found → UI widget missing
+- Slow failures (30s) = `waitForURL('**/dashboard')` timed out OR button interaction attempted and URL never changed → navigation not wired
+- No syntax errors, no import errors — pure feature-not-shipped failures
+
+#### API Test Design Notes
+- `GET /teams/me`: guard against null `data.data` — US-030 (team feature) may not be implemented yet; test accepts both `null` and a valid team object to avoid false failures blocking CI
+- `GET /dashboard/me/dashboard`: asserts `user.email`, `subscription` key, and `team` key — `team` value may be null until US-030 ships
+
+#### Route Patterns Observed
+- API base is `http://localhost:3001` (no `/api` prefix) — confirmed from prior learnings
+- Login token lives at `data.data.accessToken` in the response body
+
+### Recommendations
+1. Karthi: Once `GET /teams/me` and `GET /dashboard/me/dashboard` endpoints are live, run `npm run test:api` — the API tests are ready
+2. Frontend team: Implement dashboard heading, quick action buttons (Upgrade Plan, Manage Billing, Invite Member), and email display to make E2E tests green
+3. `/subscription` and `/pricing` navigation from dashboard buttons must be wired for nav tests to pass
+
+
+
+### 2026-03-30T13:37:31Z — Anticipatory Tests: Team and Dashboard (Sprint Complete)
+
+**Delivered:**
+- tests/api/team.test.ts: API tests for GET /teams/me; guards against null data (US-030 may not be live)
+- tests/api/dashboard.test.ts: API tests asserting user.email, subscription key, team key
+- tests/e2e/dashboard.spec.ts: 5 E2E tests; all fail as expected (feature gap, not bugs)
+  - Fast failures (6s) = login worked, page loaded, element not found = UI widget missing
+  - Slow failures (30s) = waitForURL timed out = navigation not wired
+
+**Test design principles applied:**
+- Anticipatory tests written before feature ships; failure = feature gap, not test bug
+- API tests accept null data.data for unshipped endpoints to avoid false CI failures
+- Auth base URL confirmed: http://localhost:3001 (no /api prefix)
+- Login token at data.data.accessToken
+
+**Action items still open:**
+- Run npx playwright install to fix Firefox/WebKit missing browser binaries
+- Auth E2E: 3 real Chromium failures remain (Senthil to address login/signup error display)

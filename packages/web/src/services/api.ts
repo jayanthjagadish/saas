@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData } from '../types/api';
 
 /**
  * API Service Layer
@@ -187,6 +187,11 @@ class ApiService {
 
   async reactivateSubscription(): Promise<ApiResponse<Subscription>> {
     const response = await this.client.post<ApiResponse<Subscription>>('/subscriptions/me/reactivate');
+    return response.data;
+  }
+
+  async getDashboard(): Promise<ApiResponse<DashboardData>> {
+    const response = await this.client.get<ApiResponse<DashboardData>>('/dashboard/me/dashboard');
     return response.data;
   }
 

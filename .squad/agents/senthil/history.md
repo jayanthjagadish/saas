@@ -233,3 +233,34 @@ Changed VITE_API_BASE_URL from `http://localhost:3001/api` to `/api` (relative p
 **Critical Learning:**
 Environment configuration can completely override application logic. Never use absolute localhost URLs in .env when the development environment uses a proxy. Always verify proxy setup when debugging API routing issues.
 
+### 2026-03-30 — Implemented US-043 Dashboard Overview Card & Quick Actions
+
+Added `DashboardData` type to `types/api.ts` and `getDashboard()` method to `services/api.ts` calling `GET /dashboard/me/dashboard`.
+
+Updated `pages/dashboard.tsx`:
+- Added `useQuery(['dashboard'])` fetching dashboard overview (retry: 1, staleTime: 30s)
+- Added **Overview Card** below h1: colour-coded left border (red/yellow/green) based on subscription health, team member progress bar, renewal countdown, next billing amount
+- Added **Quick Actions** bar: Upgrade Plan (disabled for enterprise), Invite Member (coming soon, disabled), Manage Billing
+
+Page order: h1 → Overview Card → Quick Actions → Cancellation Banner → Account → Subscription → Billing History.
+TypeScript: 0 errors.
+
+
+
+### 2026-03-30T13:37:31Z — US-040/043 Dashboard Frontend (Sprint Complete)
+
+**Delivered:**
+- DashboardData interface in packages/web/src/types/api.ts
+- getDashboard() in packages/web/src/services/api.ts — calls GET /dashboard/me/dashboard
+- pages/dashboard.tsx additions:
+  - **Overview Card**: color-coded left border (red/yellow/green), team member progress bar, renewal countdown, next billing amount; IIFE pattern for self-contained sub/team vars
+  - **Quick Actions**: Upgrade Plan (disabled for enterprise), Invite Member (disabled, coming soon), Manage Billing
+  - Query: etry: 1, staleTime: 30_000; card renders only when data is present
+- TypeScript: 0 errors
+
+**Design rules established:**
+- Frontend owns user-facing error strings for known HTTP error codes (not backend messages)
+- Auth endpoints bypass 401 interceptor refresh logic entirely
+- Absolute localhost URLs in .env bypass Vite proxy — always use relative /api
+
+**Anticipatory E2E tests ready (Baskar):** 	ests/e2e/dashboard.spec.ts (5 tests, all fail as feature gap)

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
-import { User, Subscription } from '../models/index.js';
+import { User, Subscription, Team, TeamMember } from '../models/index.js';
 import { sendVerificationEmail } from '../services/email.js';
 import { config } from '../config/index.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, revokeSession, requestPasswordReset, resetPassword } from '../services/auth.js';
@@ -69,6 +69,11 @@ router.post('/signup', async (req: Request, res: Response) => {
       currentPeriodStart: now,
       currentPeriodEnd: thirtyDays,
     } as any);
+
+    // Create default team for new user
+    const teamName = company_name ? `${company_name} Team` : `${email.split('@')[0]}'s Team`;
+    const team = await Team.create({ name: teamName, ownerId: user.id } as any);
+    await TeamMember.create({ teamId: team.id, userId: user.id, role: 'owner', joinedAt: new Date() } as any);
 
     // Send verification email
     await sendVerificationEmail(email, token);

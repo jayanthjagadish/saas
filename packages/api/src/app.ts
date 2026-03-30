@@ -11,6 +11,8 @@ import subscriptionRoutes from './routes/subscriptions.js';
 import paymentRoutes from './routes/payments.js';
 import webhookRoutes from './routes/webhooks.js';
 import plansRoutes from './routes/plans.js';
+import teamsRoutes from './routes/teams.js';
+import dashboardRoutes from './routes/dashboard.js';
 
 const app = express();
 
@@ -32,6 +34,8 @@ app.use('/subscriptions', subscriptionRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/webhooks', webhookRoutes);
 app.use('/plans', plansRoutes);
+app.use('/teams', teamsRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

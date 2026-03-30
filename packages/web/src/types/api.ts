@@ -70,3 +70,21 @@ export interface Payment {
   status: 'succeeded' | 'processing' | 'requires_payment_method';
   createdAt: string;
 }
+
+export interface DashboardData {
+  user: { name: string | null; email: string; createdAt: string };
+  subscription: {
+    status: string;
+    planName: string;
+    tier: string;
+    priceMonthly: number;
+    currentPeriodEnd: string | null;
+    daysUntilRenewal: number | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+  team: {
+    name: string;
+    memberCount: number;
+    memberLimit: number;
+  } | null;
+}

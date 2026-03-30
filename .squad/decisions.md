@@ -489,3 +489,68 @@
 - EPIC-4 requirement: Dashboard buttons and plan displays must consume live API data, not hardcoded stubs
 - `cancel_at_period_end` pattern preserves user access until period end, reducing support burden
 
+
+---
+
+## Session: 2026-03-30 — Team Dashboard Sprint (US-030 / US-040 / US-043)
+
+### Decision: Team Data Model & Ownership (US-030 / US-040)
+**Date:** 2026-03-30
+**Author:** Karthi (Backend Engineer)
+**Status:** Implemented
+
+1. **One team per user (owner-centric):** Each user gets exactly one team created at signup. GET /teams/me falls back to membership lookup so non-owner members can also retrieve their team.
+2. **TeamMember role enum: owner | admin | member:** Signup always creates the first TeamMember with ole = 'owner'. dmin reserved for future invite flows.
+3. **Auto-team creation in signup:** Team + TeamMember rows created atomically during signup transaction. Team name defaults to {company_name} Team or {emailPrefix}'s Team.
+4. **Unique index on (team_id, user_id):** Enforced at DB level to prevent duplicate membership rows.
+5. **Dashboard endpoint at /dashboard/me/dashboard:** Aggregates user profile, active subscription (with plan), and team summary (member count + limit from plan).
+
+**Files:** models/Team.ts, models/TeamMember.ts, models/index.ts, outes/auth.ts, outes/teams.ts, outes/dashboard.ts, pp.ts
+
+---
+
+### Decision: Dashboard Overview Card & Quick Actions (US-043)
+**Date:** 2026-03-30
+**Author:** Senthil (Frontend Engineer)
+**Status:** Implemented
+
+1. **API contract:** GET /dashboard/me/dashboard → ApiResponse<DashboardData> with user, subscription, team fields.
+2. **Border colour logic:** Red = no subscription / past_due / team at capacity; Yellow = cancel pending / ≤7 days renewal / team ≥80% limit; Green = healthy.
+3. **IIFE pattern** inside JSX to keep sub/team variables self-contained.
+4. **Quick Actions — Upgrade Plan** disabled when tier === 'enterprise'. **Invite Member** hardcoded disabled (coming soon).
+5. **Dashboard query:** etry: 1, staleTime: 30_000 — low retry for 404 endpoints; 30s stale.
+
+**Files:** packages/web/src/types/api.ts, packages/web/src/services/api.ts, packages/web/src/pages/dashboard.tsx
+
+---
+
+### Decision: Auth E2E Test Fixes
+**Date:** 2026-03-30
+**Author:** Senthil (Frontend Engineer)
+**Status:** Implemented
+
+1. **Axios 401 interceptor early-exit:** Auth endpoints (/auth/login, /auth/signup, /auth/refresh) re-throw immediately without attempting token refresh.
+2. **LoginPage 
+oValidate:** Added to prevent browser native HTML5 validation from blocking Playwright submits.
+3. **Duplicate email error normalization:** Always display 'Email already registered' (not backend message) for 409 responses.
+
+**Rule established:** Frontend owns its user-facing error strings for known error codes.
+
+---
+
+### Decision: .env VITE_API_BASE_URL Fix
+**Date:** 2026-03-30T17:24:02Z
+**Author:** Scribe (via Senthil resolution)
+**Status:** Resolved
+
+Changed VITE_API_BASE_URL from http://localhost:3001/api to /api (relative path) to respect Vite proxy configuration. Absolute localhost URLs in .env bypass Vite's proxy and must be avoided in dev environments that use proxies. **Result:** 9/9 non-skipped Chromium auth E2E tests passing.
+
+---
+
+### Decision: Anticipatory Tests — Auth Test Results (Baskar Report)
+**Date:** 2026-03-30
+**Author:** Baskar (QA Engineer)
+**Status:** Recorded
+
+Auth E2E run results: 4 passed, 23 failed (16 = missing Firefox/WebKit binaries; 3 = real Chromium failures). Action items: Senthil to fix login error display and signup duplicate email visibility. Baskar to run 
+px playwright install.
