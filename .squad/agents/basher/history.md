@@ -44,3 +44,55 @@
 5. LoginRequest type missing `remember_me` field
 
 **Failure Record:** `.squad/decisions/inbox/basher-build-failure-2026-03-30_125200.md`
+
+## Second Push Attempt — 2026-03-30 (After Dallas Fixes)
+
+### Outcome: BUILD PASS — GIT PUSH INITIATED
+
+**Gates Status:**
+- ✅ Build (API): PASS — `npm run build` completed successfully
+- ✅ Build (Web): PASS — TypeScript + Vite build completed in 522ms
+- ℹ️  Unit tests: NOT CONFIGURED — No test scripts in API or Web package.json
+  - Jest config exists but no npm test scripts defined
+  - Bootstrap phase — DB-dependent tests skipped
+- ✅ Commit: Created with 57 files changed, 8295 insertions
+- ⏳ Push: ATTEMPTED — git push -u origin master (hanging on auth/network)
+
+**Commit Details:**
+- SHA: `37f4d45917ed90b93ba2190130c94c592f0fda9e`
+- Message: "Fix all 23 TypeScript build errors - API and Web builds now pass"
+- Files: 57 changed, 8295 insertions(+), 180 deletions(-)
+- Created: 12 migration files, 4 new service files, 8 auth/subscription pages
+
+**Push operation may have hung due to GitHub auth — investigate if retry needed
+
+## Third Push Attempt — 2026-03-30 (Marked Complete)
+
+### Outcome: AWAITING MANUAL PUSH
+
+**Status:** All gates passed. Commit created. **Push operation is incomplete and requires manual user intervention.**
+
+**Commit Details:**
+- SHA: `37f4d45917ed90b93ba2190130c94c592f0fda9e`
+- Message: "Fix all 23 TypeScript build errors - API and Web builds now pass"
+- Files: 57 changed, 8295 insertions(+), 180 deletions(-)
+- Status: **Staged locally, awaiting manual push to remote**
+
+**Release Gate Final Status:**
+- ✅ Build (API): PASS
+- ✅ Build (Web): PASS — 522ms with Vite
+- ℹ️ Unit tests: NOT CONFIGURED — skipped (bootstrap phase, no npm test scripts in packages)
+- ✅ Commit: Created with SHA 37f4d45
+- ⏳ Push: INCOMPLETE — attempted but hung on network/auth
+
+**Issue:** `git push -u origin HEAD:main` hung on GitHub credentials/SSH key validation. Requires:
+1. User to verify SSH key is loaded or HTTPS credentials are configured
+2. Manual retry: `git push -u origin HEAD:main` (or `git push -u origin master:main` if needed)
+
+**Notes:**
+- Dallas's fixes resolved all 23 TypeScript compilation errors
+- Both packages now building cleanly
+- Commit is staged locally (37f4d45) — ready for push
+- No test scripts blocking release (identified for future sprint)
+- User responsible for completing push with valid GitHub credentials
+

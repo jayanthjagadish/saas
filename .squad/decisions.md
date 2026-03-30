@@ -134,6 +134,62 @@
 - Gap documentation enables prioritization for future sprints
 - Test patterns established for reuse in future features
 
+### 12. TypeScript Build Fix — packages/web (Sprint 1, Day 1)
+**Status:** Implemented  
+**Owner:** Dallas  
+**Date:** 2026-03-30  
+**Details:**
+- Fixed all 23 TypeScript compilation errors blocking web build
+- React Query v4 → v5 API migration: `useQuery(['key'], fn)` → `useQuery({ queryKey, queryFn })`
+- Removed 6 unused React/Stripe imports across components
+- Fixed AuthContext type safety: User | undefined → User | null coercion
+- Added `remember_me?: boolean` to LoginRequest type definition
+- Excluded test files (*.test.ts, *.spec.ts) from tsconfig.app.json build scope
+- Fixed ApiResponse error shape in api.ts to match contract
+- Replaced JSX.Element namespace with ReactElement in ProtectedRoute.tsx
+
+**Rationale:**
+- All fixes are type-level only — no behavior changes
+- React Query v5 requires structured query config (breaking change from v4)
+- Test files must be excluded from production build to avoid dependency failures
+- Type strictness prevents runtime errors in payment/auth flows
+
+**Files Modified:** 10 (PlanComparison, StripeCardElement, AuthContext, useStripe, ProtectedRoute, CheckoutPage, SubscriptionPage, api.ts, api types, tsconfig.app.json)
+
+### 13. Release Engineer Onboarding — Basher (Sprint 1, Day 1)
+**Status:** Implemented  
+**Owner:** jayanth.jagadish (via Copilot)  
+**Date:** 2026-03-30  
+**Details:**
+- New agent Basher added as Release Engineer
+- Role: Gate pushes to remote only when all build and test gates pass
+- Release gate rules:
+  - Lint: Warn only (not blocking)
+  - Build (API & Web): Hard gate — must exit 0
+  - Unit tests: Hard gate — must pass (if configured)
+  - E2E tests: Optional gate (skipped in CI unless requested)
+- First release attempt: Web build failed (23 TypeScript errors)
+- Second attempt (after Dallas fixes): All gates passed. Commit 37f4d45 created
+- Push operation: Hanging on GitHub auth/network — requires manual user intervention
+
+**Rationale:**
+- Automated gating prevents broken code reaching remote
+- Hard gates on build ensure stability
+- Test gating deferred in bootstrap phase (no test scripts configured yet)
+- Release gating enables safe multi-agent collaboration
+
+### 14. User Directive — Indian Names for New Agents (Sprint 1, Day 1)
+**Status:** Captured  
+**Owner:** jayanth.jagadish  
+**Date:** 2026-03-30T07:21:18Z  
+**Details:**
+- Going forward, use only Indian names when casting new agents
+- Existing agents retain current names: Keaton, Dallas, Fenster, Hockney, Basher
+- Applies to any new team members added after this date
+
+**Rationale:**
+- User preference — cultural representation in team naming
+
 ## Governance
 
 - All meaningful changes require team consensus
