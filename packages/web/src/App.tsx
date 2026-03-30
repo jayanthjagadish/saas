@@ -17,6 +17,7 @@ import TeamPage from './pages/TeamPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import ProfilePage from './pages/ProfilePage';
 import BillingHistoryPage from './pages/BillingHistoryPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import ProtectedRoute from './middleware/ProtectedRoute';
 import './index.css';
 
@@ -51,6 +52,7 @@ function App() {
             <Route path="/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/billing" element={<ProtectedRoute><BillingHistoryPage /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
             <Route path="/invite/:token" element={<AcceptInvitePage />} />
           </Routes>
         </Layout>

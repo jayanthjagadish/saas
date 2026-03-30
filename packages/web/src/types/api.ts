@@ -79,6 +79,15 @@ export interface TeamMember {
   user: { id: string; name: string | null; email: string } | null;
 }
 
+export interface TeamMemberDetail {
+  id: string;
+  userId: string;
+  email: string;
+  name: string | null;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -101,6 +110,13 @@ export interface UserProfile {
   name: string | null;
   avatarUrl: string | null;
   createdAt: string;
+  twoFactorEnabled?: boolean;
+}
+
+export interface TwoFactorSetup {
+  qrCodeUrl: string;
+  secret: string;
+  manualEntryKey: string;
 }
 
 export interface Invoice {
@@ -111,6 +127,19 @@ export interface Invoice {
   status: 'paid' | 'pending' | 'failed';
   planName: string;
   invoicePdfUrl: string | null;
+}
+
+export interface UsageStats {
+  memberCount: number;
+  memberLimit: number;
+  planName: string;
+  teamCreatedAt: string;
+  monthlyActiveMembers: number;
+}
+
+export interface MemberGrowth {
+  month: string;
+  count: number;
 }
 
 export interface DashboardData {

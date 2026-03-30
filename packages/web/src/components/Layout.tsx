@@ -61,6 +61,12 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Billing
                   </Link>
+                  <Link
+                    to="/analytics"
+                    className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                  >
+                    Analytics
+                  </Link>
                   <div className="text-sm text-gray-700 px-3">{auth.user?.email}</div>
                   <button
                     onClick={handleLogout}

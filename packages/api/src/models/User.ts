@@ -14,6 +14,8 @@ export interface IUser {
   emailVerifiedAt?: Date | null;
   resetPasswordToken?: string | null;
   resetPasswordExpires?: Date | null;
+  twoFactorSecret?: string | null;
+  twoFactorEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,8 @@ export class User extends Model<IUser> implements IUser {
   declare emailVerifiedAt?: Date | null;
   declare resetPasswordToken?: string | null;
   declare resetPasswordExpires?: Date | null;
+  declare twoFactorSecret?: string | null;
+  declare twoFactorEnabled?: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -96,6 +100,17 @@ User.init(
       type: DataTypes.DATE,
       allowNull: true,
       field: 'reset_password_expires',
+    },
+    twoFactorSecret: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'two_factor_secret',
+    },
+    twoFactorEnabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'two_factor_enabled',
     },
     createdAt: {
       type: DataTypes.DATE,

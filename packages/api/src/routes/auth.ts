@@ -78,7 +78,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     // Send verification email
     await sendVerificationEmail(email, token);
 
-    res.status(201).json({ user_id: user.id, email: user.email, message: 'Check your email to verify' });
+    res.status(201).json({ success: true, data: { user_id: user.id, email: user.email, message: 'Check your email to verify' } });
   } catch (err) {
     console.error('Signup error', err);
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Failed to create user' });

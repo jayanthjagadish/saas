@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamInvite, UserProfile, Invoice } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamMemberDetail, TeamInvite, UserProfile, Invoice, TwoFactorSetup, UsageStats, MemberGrowth } from '../types/api';
 
 /**
  * API Service Layer
@@ -229,8 +229,18 @@ class ApiService {
     return response.data;
   }
 
-  async removeMember(memberId: string): Promise<ApiResponse<{ removed: boolean }>> {
-    const response = await this.client.delete<ApiResponse<{ removed: boolean }>>(`/teams/me/members/${memberId}`);
+  async getTeamMembers(teamId: string): Promise<ApiResponse<TeamMemberDetail[]>> {
+    const response = await this.client.get<ApiResponse<TeamMemberDetail[]>>(`/teams/${teamId}/members`);
+    return response.data;
+  }
+
+  async updateMemberRole(teamId: string, userId: string, role: 'admin' | 'member'): Promise<ApiResponse<{ updated: boolean }>> {
+    const response = await this.client.patch<ApiResponse<{ updated: boolean }>>(`/teams/${teamId}/members/${userId}/role`, { role });
+    return response.data;
+  }
+
+  async removeMember(teamId: string, userId: string): Promise<ApiResponse<{ removed: boolean }>> {
+    const response = await this.client.delete<ApiResponse<{ removed: boolean }>>(`/teams/${teamId}/members/${userId}`);
     return response.data;
   }
 
@@ -268,6 +278,35 @@ class ApiService {
 
   async getInvoices(): Promise<ApiResponse<{ invoices: Invoice[]; hasMore: boolean }>> {
     const res = await this.client.get('/subscriptions/invoices');
+    return res.data;
+  }
+
+  // ===== 2FA Endpoints =====
+
+  async setup2FA(): Promise<ApiResponse<TwoFactorSetup>> {
+    const res = await this.client.post<ApiResponse<TwoFactorSetup>>('/auth/2fa/setup');
+    return res.data;
+  }
+
+  async verify2FA(token: string): Promise<ApiResponse<{ message: string }>> {
+    const res = await this.client.post<ApiResponse<{ message: string }>>('/auth/2fa/verify', { token });
+    return res.data;
+  }
+
+  async disable2FA(token: string): Promise<ApiResponse<{ message: string }>> {
+    const res = await this.client.post<ApiResponse<{ message: string }>>('/auth/2fa/disable', { token });
+    return res.data;
+  }
+
+  // ===== Analytics Endpoints =====
+
+  async getUsageStats(): Promise<ApiResponse<UsageStats>> {
+    const res = await this.client.get<ApiResponse<UsageStats>>('/analytics/usage');
+    return res.data;
+  }
+
+  async getMemberGrowth(): Promise<ApiResponse<MemberGrowth[]>> {
+    const res = await this.client.get<ApiResponse<MemberGrowth[]>>('/analytics/members/growth');
     return res.data;
   }
 

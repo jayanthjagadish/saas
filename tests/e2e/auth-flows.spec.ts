@@ -51,21 +51,29 @@ test.describe('Auth Flows - E2E', () => {
       await expect(page).toHaveURL(/.*login/);
 
       await page.getByLabel('Email').fill('nonexistent@example.com');
-      await page.getByRole('textbox', { name: 'Password' }).fill('anypassword');
+      await page.locator('#password').fill('anypassword');
 
+      const responsePromise = page.waitForResponse(
+        (r) => r.url().includes('/auth/login') && r.status() === 401
+      );
       await page.getByRole('button', { name: 'Login' }).click();
+      await responsePromise;
 
-      await expect(page.locator('text=Invalid email or password')).toBeVisible();
+      await expect(page.getByText('Invalid email or password')).toBeVisible();
     });
 
     test('should reject wrong password', async ({ page }) => {
       await page.getByRole('link', { name: 'Login' }).click();
       await page.getByLabel('Email').fill('test@example.com');
-      await page.getByRole('textbox', { name: 'Password' }).fill('WrongPassword');
+      await page.locator('#password').fill('WrongPassword');
 
+      const responsePromise = page.waitForResponse(
+        (r) => r.url().includes('/auth/login') && r.status() === 401
+      );
       await page.getByRole('button', { name: 'Login' }).click();
+      await responsePromise;
 
-      await expect(page.locator('text=Invalid email or password')).toBeVisible();
+      await expect(page.getByText('Invalid email or password')).toBeVisible();
     });
 
     test.skip('should lock account after 5 failed attempts - requires rate limiting', async ({ page }) => {

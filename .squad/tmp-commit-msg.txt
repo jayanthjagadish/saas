@@ -1,0 +1,18 @@
+feat: US-034 role management, US-041 analytics, US-006 2FA (Sprint 4)
+
+US-034 Member Role Management
+- TeamPage: role badges (owner/admin/member), change role dropdown, remove modal
+- API: getTeamMembers, updateMemberRole, removeMember
+- Tests: 8 API + 6 E2E
+
+US-041 Usage Analytics
+- Backend: GET /analytics/usage, GET /analytics/members/growth
+- Frontend: AnalyticsPage with stat cards + CSS bar chart, /analytics route
+- Tests: 6 API + 4 E2E
+
+US-006 Two-Factor Authentication (TOTP)
+- Backend: POST /auth/2fa/setup, /verify, /disable; User model updated
+- Frontend: ProfilePage Security card, QR code flow, enable/disable UI
+- Tests: 6 API + 5 E2E
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>

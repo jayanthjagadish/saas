@@ -13,6 +13,9 @@ import webhookRoutes from './routes/webhooks.js';
 import plansRoutes from './routes/plans.js';
 import teamsRoutes from './routes/teams.js';
 import dashboardRoutes from './routes/dashboard.js';
+import twoFactorRoutes from './routes/two-factor.js';
+import analyticsRoutes from './routes/analytics.js';
+import { Plan } from './models/index.js';
 
 const app = express();
 
@@ -29,6 +32,7 @@ app.use(requestLoggingMiddleware);
 
 // Routes
 app.use('/auth', authRoutes);
+app.use('/auth', twoFactorRoutes);
 app.use('/users', userRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 app.use('/payments', paymentRoutes);
@@ -36,6 +40,7 @@ app.use('/webhooks', webhookRoutes);
 app.use('/plans', plansRoutes);
 app.use('/teams', teamsRoutes);
 app.use('/dashboard', dashboardRoutes);
+app.use('/analytics', analyticsRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
@@ -48,6 +53,7 @@ app.use(errorHandler);
 export async function startServer(): Promise<void> {
   try {
     await initializeDatabase();
+    await seedDefaultPlans();
     app.listen(config.app.port, () => {
       console.log(`✅ Backend running at ${config.app.apiUrl}`);
       console.log(`Environment: ${config.app.nodeEnv}`);
@@ -56,6 +62,19 @@ export async function startServer(): Promise<void> {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
+}
+
+async function seedDefaultPlans(): Promise<void> {
+  const plans = [
+    { name: 'Free', tier: 'free', price_monthly: 0, price_annual: 0, max_members: 3, features: ['3 team members', 'Basic features'] },
+    { name: 'Pro', tier: 'pro', price_monthly: 29, price_annual: 290, max_members: 10, features: ['10 team members', 'Advanced features', 'Priority support'] },
+    { name: 'Enterprise', tier: 'enterprise', price_monthly: 99, price_annual: 990, max_members: 100, features: ['Unlimited members', 'All features', 'Dedicated support'] },
+  ];
+
+  for (const plan of plans) {
+    await Plan.findOrCreate({ where: { tier: plan.tier }, defaults: plan as any });
+  }
+  console.log('Default plans seeded.');
 }
 
 export default app;

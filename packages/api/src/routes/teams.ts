@@ -271,5 +271,109 @@ router.delete('/me/members/:memberId', authMiddleware, async (req: AuthRequest, 
   }
 });
 
+// GET /teams/:teamId/members — list all members with user info (US-034)
+router.get('/:teamId/members', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user!;
+    const { teamId } = req.params;
+
+    const team = await Team.findByPk(teamId);
+    if (!team) return res.status(404).json({ success: false, error: 'TEAM_NOT_FOUND' });
+
+    // Requester must be a member of the team
+    const requesterMembership = await TeamMember.findOne({ where: { teamId, userId: userInfo.id } });
+    if (!requesterMembership) return res.status(403).json({ success: false, error: 'NOT_A_MEMBER' });
+
+    const members = await TeamMember.findAll({
+      where: { teamId },
+      include: [{ model: User, as: 'user', attributes: ['id', 'name', 'email'] }],
+      order: [['joinedAt', 'ASC']],
+    });
+
+    return res.json({
+      success: true,
+      data: members.map((m: any) => ({
+        id: m.id,
+        userId: m.userId,
+        email: m.user?.email ?? null,
+        name: m.user?.name ?? null,
+        role: m.role,
+        joinedAt: m.joinedAt,
+      })),
+    });
+  } catch (err) {
+    console.error('Error fetching members:', err);
+    return res.status(500).json({ success: false, error: 'FETCH_FAILED' });
+  }
+});
+
+// PATCH /teams/:teamId/members/:userId/role — change a member's role (US-034)
+router.patch('/:teamId/members/:userId/role', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user!;
+    const { teamId, userId } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['admin', 'member'].includes(role)) {
+      return res.status(400).json({ success: false, error: role === 'owner' ? 'CANNOT_ASSIGN_OWNER_ROLE' : 'INVALID_ROLE' });
+    }
+
+    const team = await Team.findByPk(teamId);
+    if (!team) return res.status(404).json({ success: false, error: 'TEAM_NOT_FOUND' });
+
+    // Only owner or admin can change roles
+    const requesterMembership = await TeamMember.findOne({ where: { teamId, userId: userInfo.id } });
+    if (!requesterMembership || (requesterMembership.role !== 'owner' && requesterMembership.role !== 'admin')) {
+      return res.status(403).json({ success: false, error: 'INSUFFICIENT_ROLE' });
+    }
+
+    const target = await TeamMember.findOne({ where: { teamId, userId } });
+    if (!target) return res.status(404).json({ success: false, error: 'MEMBER_NOT_FOUND' });
+
+    if (target.role === 'owner') {
+      return res.status(403).json({ success: false, error: 'CANNOT_CHANGE_OWNER_ROLE' });
+    }
+
+    await target.update({ role });
+
+    return res.json({ success: true, data: { userId, teamId, role } });
+  } catch (err) {
+    console.error('Error updating role:', err);
+    return res.status(500).json({ success: false, error: 'UPDATE_FAILED' });
+  }
+});
+
+// DELETE /teams/:teamId/members/:userId — remove a member (US-034)
+router.delete('/:teamId/members/:userId', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userInfo = req.user!;
+    const { teamId, userId } = req.params;
+
+    const team = await Team.findByPk(teamId);
+    if (!team) return res.status(404).json({ success: false, error: 'TEAM_NOT_FOUND' });
+
+    const requesterMembership = await TeamMember.findOne({ where: { teamId, userId: userInfo.id } });
+    const isSelf = userInfo.id === userId;
+    const isOwnerOrAdmin = requesterMembership && (requesterMembership.role === 'owner' || requesterMembership.role === 'admin');
+
+    if (!isSelf && !isOwnerOrAdmin) {
+      return res.status(403).json({ success: false, error: 'INSUFFICIENT_ROLE' });
+    }
+
+    const target = await TeamMember.findOne({ where: { teamId, userId } });
+    if (!target) return res.status(404).json({ success: false, error: 'MEMBER_NOT_FOUND' });
+
+    if (target.role === 'owner') {
+      return res.status(403).json({ success: false, error: 'CANNOT_REMOVE_OWNER' });
+    }
+
+    await target.destroy();
+    return res.json({ success: true, data: { removed: true } });
+  } catch (err) {
+    console.error('Error removing member:', err);
+    return res.status(500).json({ success: false, error: 'REMOVE_FAILED' });
+  }
+});
+
 export default router;
 

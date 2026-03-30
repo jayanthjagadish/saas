@@ -23,6 +23,8 @@ export async function initializeDatabase(): Promise<void> {
   try {
     await sequelize.authenticate();
     console.log('Database connection established.');
+    await sequelize.sync();
+    console.log('Database synchronized.');
   } catch (error) {
     console.error('Unable to connect to the database:', error);
     throw error;
