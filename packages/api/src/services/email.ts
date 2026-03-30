@@ -23,7 +23,7 @@ export async function sendVerificationEmail(to: string, token: string): Promise<
 }
 
 export async function sendPasswordResetEmail(to: string, token: string): Promise<void> {
-  const resetUrl = `${config.app.webUrl}/reset-password?token=${token}`;
+  const resetUrl = `${config.app.apiUrl}/auth/reset-password?token=${token}`;
   const text = `Reset your password at ${resetUrl}. Link expires in 1 hour.`;
 
   if (config.app.nodeEnv === 'production') {
@@ -33,8 +33,9 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
   }
 
   // Dev: write to local file
-  const filename = path.join(DEV_EMAIL_DIR, `reset-${Date.now()}-${to.replace(/[@.]/g, '_')}.txt`);
-  const content = `To: ${to}\nSubject: Password Reset Request\n\n${text}`;
+  const timestamp = Date.now();
+  const filename = path.join(DEV_EMAIL_DIR, `reset-${to}-${timestamp}.txt`);
+  const content = `To: ${to}\nSubject: Password Reset Request\n\nURL: ${resetUrl}\nExpires: ${new Date(timestamp + 60 * 60 * 1000).toISOString()}\n`;
   await fs.promises.writeFile(filename, content, 'utf8');
   console.log(`Password reset email written to ${filename}`);
 }

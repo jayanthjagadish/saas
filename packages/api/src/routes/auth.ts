@@ -322,7 +322,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 // Password reset confirmation
 const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token is required'),
-  newPassword: z.string()
+  password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number'),
@@ -330,7 +330,7 @@ const resetPasswordSchema = z.object({
 
 router.post('/reset-password', async (req: Request, res: Response) => {
   try {
-    const { token, newPassword } = resetPasswordSchema.parse(req.body);
+    const { token, password: newPassword } = resetPasswordSchema.parse(req.body);
     
     await resetPassword(token, newPassword);
     
