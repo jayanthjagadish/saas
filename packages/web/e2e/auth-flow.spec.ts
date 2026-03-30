@@ -19,7 +19,7 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 test.describe('Auth Lifecycle Flow (US-003)', () => {
   
   async function getVerificationToken(page: any): Promise<string> {
-    const tokenResp = await page.request.get(`${BASE_URL}/test-hooks/last-verification`);
+    const tokenResp = await page.request.get(`http://localhost:3001/test-hooks/last-verification`);
     expect(tokenResp.status()).toBe(200);
     const body = await tokenResp.json();
     return body.token;
@@ -45,7 +45,7 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     await page.fill('input[name="companyName"]', testCompany);
 
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=/Verification|Check your email|verify/i')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
 
     // EMAIL VERIFICATION
     const verificationToken = await getVerificationToken(page);
@@ -113,7 +113,7 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     await page.fill('input[name="companyName"]', 'Test Co');
     
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=/password|weak|at least/i')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('p.text-red-600.text-sm')).toContainText(/password|at least/i, { timeout: 3000 });
   });
 
   test('Login with invalid credentials shows error', async ({ page }) => {
@@ -144,7 +144,7 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     await page.fill('input[name="password"]', testPassword);
     
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=/verify|verified|confirmation/i')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('div.bg-red-100.border-red-400.text-red-700')).toContainText(/verify/i, { timeout: 3000 });
   });
 
   test('Remember Me checkbox extends token expiry', async ({ page, context }) => {

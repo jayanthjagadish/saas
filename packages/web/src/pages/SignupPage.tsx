@@ -82,6 +82,7 @@ const SignupPage: React.FC = () => {
               <span className="text-sm font-medium text-gray-700">Email</span>
               <input
                 aria-label="Email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -94,6 +95,7 @@ const SignupPage: React.FC = () => {
               <span className="text-sm font-medium text-gray-700">Password</span>
               <input
                 aria-label="Password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -107,6 +109,7 @@ const SignupPage: React.FC = () => {
               <span className="text-sm font-medium text-gray-700">Company name</span>
               <input
                 aria-label="Company name"
+                name="companyName"
                 type="text"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}

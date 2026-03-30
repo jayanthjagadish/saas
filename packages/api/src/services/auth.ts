@@ -6,6 +6,7 @@ import { Session } from '../models/Session.js';
 import { config } from '../config/index.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { sendPasswordResetEmail } from './email.js';
+import { setLastResetToken } from '../routes/test-hooks.js';
 
 export async function registerUser(
   email: string,
@@ -98,6 +99,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
   user.resetPasswordToken = resetToken;
   user.resetPasswordExpires = expiresAt;
   await user.save();
+
+  // Store token for test hooks (dev only)
+  if (process.env.NODE_ENV !== 'production') {
+    setLastResetToken(resetToken);
+  }
 
   await sendPasswordResetEmail(email, resetToken);
 }

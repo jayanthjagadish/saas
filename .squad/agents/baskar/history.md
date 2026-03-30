@@ -920,3 +920,73 @@ Write API and E2E tests for the dashboard quick actions feature (US-043).
 **Contract-first pipeline established.** Must read packages/api/API_CONTRACT.md before writing any tests. test.skip() is banned — use real tests or document as known bug.
 
 All tests must map to documented routes in the contract. Never invent test cases for undocumented endpoints. If a route is missing from the contract, raise it with Karthi before writing the test.
+
+---
+
+## 2025-01-20: Fixed Broken Auth E2E Tests
+
+### Context
+Fixed two broken E2E test files that had outdated/incorrect selectors and endpoint URLs after Senthil and Karthi completed their work.
+
+### Files Modified
+1. `packages/web/e2e/auth-flow.spec.ts` — fixed 4 issues
+2. `packages/web/e2e/password-reset.spec.ts` — fixed 8 issues
+
+### Issues Fixed
+
+#### auth-flow.spec.ts
+1. **Test-hook endpoint URL** — changed from `${BASE_URL}/test-hooks/last-verification` to direct API call `http://localhost:3001/test-hooks/last-verification` (per Karthi's handoff)
+2. **Signup success selector** — changed from vague `text=/Verification|Check your email|verify/i` to precise `div.bg-blue-50.text-blue-800 p` (per Senthil's handoff)
+3. **Password validation error selector** — changed from broad `text=/password|weak|at least/i` (matched both label AND error) to specific `p.text-red-600.text-sm` with `.toContainText()` to avoid strict mode violation
+4. **Unverified login error selector** — changed from vague `text=/verify|verified|confirmation/i` to precise `div.bg-red-100.border-red-400.text-red-700` with `.toContainText(/verify/i)`
+
+#### password-reset.spec.ts
+1. **Forgot-password link** — changed from `a[href="/forgot-password"]` to correct `a[href="/auth/forgot-password"]` (per App.tsx routes)
+2. **Success message selector** — changed from vague `.message, .alert-success, [role="alert"]` to specific `h2.text-2xl.font-bold` matching "Check Your Email"
+3. **Test-hook endpoint URL** — changed from `http://localhost:3000/test-hooks/last-reset-token` to direct API `http://localhost:3001/test-hooks/last-reset-token`
+4. **Reset password route** — changed from `/reset-password` to correct `/auth/reset-password` (per App.tsx)
+5. **Removed login redirect success assertion** — per Senthil's note "The `/login?reset=success` query param exists but UI doesn't show a success banner yet"
+6. **Forgot-password validation test** — removed empty form test (not needed), kept only invalid email test; changed generic selectors to `div.bg-red-100.border-red-400.text-red-700`
+7. **All error selectors** — changed from generic `.error, .alert-error, [role="alert"]` to precise `div.bg-red-100.border-red-400.text-red-700` matching ResetPasswordPage error container
+8. **All forgot-password routes** — updated from `/forgot-password` to `/auth/forgot-password` across all tests
+
+### Learnings
+
+#### Test-Hook Endpoints Must Call API Directly
+- Karthi's handoff states: "call these endpoints at `${BASE_URL}/test-hooks/...`"
+- BUT the Vite proxy only works for browser navigation, NOT for `page.request.get()` in Playwright
+- Solution: Always call test-hooks directly at `http://localhost:3001/test-hooks/...` (API server)
+
+#### Read Senthil's Handoff FIRST — Never Guess Selectors
+- Senthil documents exact selectors for every element: `input[name="..."]`, `p.text-red-600.text-sm`, `div.bg-red-100.border-red-400.text-red-700`
+- Different pages have different error patterns:
+  - SignupPage: field-level errors as `p.text-red-600.text-sm`
+  - LoginPage/ForgotPassword/ResetPassword: form-level errors in `div.bg-red-100.border-red-400.text-red-700`
+- Never use broad regex like `text=/verify|password|error/i` — it matches multiple elements and violates strict mode
+
+#### Routes in App.tsx Are Source of Truth
+- Forgot-password: `/auth/forgot-password` (not `/forgot-password`)
+- Reset-password: `/auth/reset-password` (not `/reset-password`)
+- Login/Signup: both `/login` and `/auth/login` exist (legacy compatibility)
+- Always check App.tsx before writing navigation tests
+
+#### UI State vs Implementation Gap
+- Senthil noted: "`/login?reset=success` query param exists but UI doesn't show a success banner yet"
+- Tests should NOT assert on features that aren't implemented — removed the success banner assertion
+- This is NOT a test failure — this is correctly following "test what exists, not what should exist"
+
+#### Strict Mode Selector Violations
+- Playwright strict mode fails when a selector matches >1 element
+- Example: `text=/password/i` matches both `<label>Password</label>` AND `<p class="text-red-600">Password must be...</p>`
+- Solution: Use specific selectors (`p.text-red-600.text-sm`) + `.toContainText()` for text matching
+
+### Known Gaps (Not Blockers)
+- Login success banner for `?reset=success` query param — UI not implemented yet (per Senthil)
+- Password reset tests assume user exists — would benefit from `beforeEach` setup via API once user factory is available
+- Remember Me checkbox persistence not visibly testable from UI alone (per Senthil's handoff)
+
+### Files Ready for Execution
+- Both test files now have correct selectors and routes
+- No syntax errors (validated via edit tool)
+- Tests align with Senthil's handoff and Karthi's test-hook API
+- Ready to run once backend API is running (`npm start` in packages/api)

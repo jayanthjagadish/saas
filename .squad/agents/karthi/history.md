@@ -593,3 +593,9 @@ ext() otherwise
 **API_CONTRACT.md is now the canonical route contract.** Must update it when adding/changing routes. Located at packages/api/API_CONTRACT.md.
 
 Backend route changes must be reflected in the contract BEFORE frontend or testing begins. All new routes must be documented with method, auth requirement, request/response shapes, and error codes before being considered complete.
+
+## Learnings
+
+- Test hooks MUST be guarded with NODE_ENV checks at both module registration (app.ts) and individual route level to ensure they never execute in production.
+- Token capture for E2E tests requires coordination across layers: route handler generates token → service layer stores for dev use → test hooks endpoint returns captured value.
+- Circular imports between routes (auth.ts ← test-hooks.ts) are safe when the import only uses exported functions, not the router itself.

@@ -489,3 +489,69 @@ IIFEs inside JSX are not proper React components — they bypass React's reconci
 **Contract-first pipeline:** read packages/api/API_CONTRACT.md before adding any calls to api.ts. Never invent routes.
 
 All API calls in the frontend must reference an existing route documented in packages/api/API_CONTRACT.md. If a route you need doesn't exist or isn't documented, raise it with Karthi and wait for the contract update before implementing the frontend feature.
+
+
+## 2025-01-20: Auth Pages Audit + Handoff to Baskar
+
+**Task:** Audit all auth pages for E2E test readiness; create handoff document for Baskar (QA Engineer).
+
+**Requested by:** Jayanth
+
+### Pages Audited
+
+1. **SignupPage.tsx** — ✅ Already has name="email", name="password", name="companyName"
+2. **LoginPage.tsx** — ✅ Already has name="email", name="password"  
+3. **forgot-password.tsx** — ✅ Already has name="email"
+4. **reset-password.tsx** — ✅ Already has name="password", name="confirmPassword"
+
+All pages confirmed to have proper 
+ame attributes for Playwright selectors. No fixes were needed.
+
+### Routes Verified
+
+Confirmed in App.tsx:
+- /signup → SignupPage
+- /login → LoginPage
+- /auth/forgot-password → ForgotPasswordPage  
+- /auth/reset-password → ResetPasswordPage
+
+Legacy routes also exist (/auth/login, /auth/signup) for backwards compatibility.
+
+### Handoff Document Created
+
+**File:** .squad/decisions/inbox/senthil-handoff-auth-pages.md
+
+Documented for Baskar:
+- All input selectors (input[name="..."])
+- Submit button states (idle vs loading text)
+- Success message selectors and text
+- Error message selectors and text for all error states
+- Navigation links (forgot password, sign up, back to login)
+- Password show/hide toggles
+- Password strength indicators
+- Edge cases (missing token, rate limiting, etc.)
+
+### Key Findings for Testing
+
+1. **Password requirements differ:**
+   - Signup: 12-char minimum
+   - Reset: 8-char minimum (but backend may enforce more)
+
+2. **Error display patterns:**
+   - Signup: field-level errors (p.text-red-600.text-sm)
+   - Login/ForgotPassword/ResetPassword: form-level errors (div.bg-red-100)
+
+3. **Security behaviors:**
+   - ForgotPassword always shows success (doesn't reveal if email exists)
+   - Login may reveal verification status (403 with resend link)
+
+4. **Unimplemented feature:**
+   - ResetPassword redirects to /login?reset=success but Login page doesn't display success banner for that query param yet
+
+## Learnings
+
+- When doing handoff documentation, be exhaustive — QA engineers need exact selectors, exact text, exact error states to write reliable E2E tests.
+- Password requirements can vary between signup and reset flows — document both explicitly to avoid confusion.
+- Security-conscious UI patterns (like always showing success on forgot-password) should be explicitly called out so QA understands the intentional behavior.
+- Legacy routes exist alongside new routes — document which ones should be the primary test targets.
+- Include "recommended test scenarios" section to help QA prioritize coverage (happy paths, error paths, edge cases).

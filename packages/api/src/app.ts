@@ -15,6 +15,7 @@ import teamsRoutes from './routes/teams.js';
 import dashboardRoutes from './routes/dashboard.js';
 import twoFactorRoutes from './routes/two-factor.js';
 import analyticsRoutes from './routes/analytics.js';
+import testHooksRoutes from './routes/test-hooks.js';
 import { Plan } from './models/index.js';
 
 const app = express();
@@ -43,6 +44,12 @@ app.use('/plans', plansRoutes);
 app.use('/teams', teamsRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/analytics', analyticsRoutes);
+
+// Test hooks (dev only)
+if (config.app.nodeEnv !== 'production') {
+  app.use('/test-hooks', testHooksRoutes);
+  console.log('✅ Test hooks enabled (dev only)');
+}
 
 // Health check
 app.get('/health', (_req, res) => {

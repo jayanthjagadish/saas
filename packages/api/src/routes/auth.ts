@@ -8,6 +8,7 @@ import { sendVerificationEmail } from '../services/email.js';
 import { config } from '../config/index.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken, revokeSession, requestPasswordReset, resetPassword } from '../services/auth.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { setLastVerificationToken, setLastResetToken } from './test-hooks.js';
 
 const router = Router();
 
@@ -77,6 +78,11 @@ router.post('/signup', async (req: Request, res: Response) => {
 
     // Send verification email
     await sendVerificationEmail(email, token);
+
+    // Store token for test hooks (dev only)
+    if (process.env.NODE_ENV !== 'production') {
+      setLastVerificationToken(token);
+    }
 
     res.status(201).json({ success: true, data: { user_id: user.id, email: user.email, message: 'Check your email to verify' } });
   } catch (err) {
