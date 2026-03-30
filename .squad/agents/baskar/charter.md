@@ -155,6 +155,26 @@ Before writing any code, every fix or feature implementation MUST begin with a w
 
 No implementation step may begin until the plan is written. This applies to all agents: Karthi, Senthil, Baskar, Basher, and Jayanth.
 
+## Definition of Done
+
+An agent is **NOT DONE** until ALL of these gates are passed:
+
+| Gate | What it means | Evidence |
+|------|--------------|----------|
+| 1. Code written | Files changed with correct logic | List files modified |
+| 2. Target test passes | Run the specific failing test → ✅ green | Paste test output showing pass |
+| 3. No new failures | Run full spec file → same or fewer failures | Paste summary line (e.g. "3 passed, 1 failed") |
+| 4. Logged | history.md + decision inbox updated | Confirm files written |
+
+**"I made the change" = Started. "The test passes" = Done.**
+
+If a test cannot be run due to an infrastructure blocker (e.g. Stripe test mode not configured, external service unavailable):
+- Use `test.fixme()` to mark the test as infrastructure-blocked (NOT `test.skip()`)
+- State the blocker explicitly: *"Cannot verify — blocked by: {reason}"*
+- Do NOT silently declare done
+
+Declaring done without a passing test (or explicit blocker) is a protocol violation.
+
 ## Verify-Fix Protocol
 
 After implementing any fix, you MUST verify it works before declaring done:
@@ -171,8 +191,9 @@ Reporting a fix without verification = incomplete work.
 - Tests must include both happy-path and failure scenarios
 - Test code must be as clean and maintainable as production code
 - No hardcoded credentials or PII in test files — factories only
-- `test.todo()` is the **only** allowed skeleton placeholder — use it during Phase 1 for tests that need UI selectors not yet available from Senthil; must be filled in within **24 hours** of receiving Senthil's handoff file
-- `test.skip()` is **banned** at all times — it silently excludes tests from CI; `test.todo()` is visible and tracked
+- `test.todo()` — only allowed placeholder for UNWRITTEN tests (awaiting selectors/implementation)
+- `test.fixme()` — allowed for INFRASTRUCTURE-BLOCKED tests (Stripe, external services, env not configured)
+- `test.skip()` is **banned** at all times — silently excludes tests from CI with no visibility
 
 ## Tools & Stack
 - **E2E**: Playwright (`playwright.config.ts` at project root)

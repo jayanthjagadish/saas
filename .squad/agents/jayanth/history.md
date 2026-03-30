@@ -78,3 +78,18 @@ This is a subscription-based SaaS with aesthetic UI. Focus on payment reliabilit
 - **GAP 2 — Full-Chain E2E Failure Tracing Rule Added:** Baskar's charter now mandates four-layer tracing before fixing any E2E failure: test layer (selectors), UI layer (elements), API layer (response format), DB layer (seeded data). Prevents superficial fixes that address only one layer and break on next run.
 - **GAP 3 — Targeted Smoke Gate Ceremony Added:** New ceremony in `.squad/ceremonies.md` runs between fix batch and full suite. Baskar runs only the touched spec files to check for regressions before committing to full suite run. Catches fix-introduced breaks before they propagate to broader test results.
 - **Decision record:** `.squad/decisions/inbox/jayanth-workflow-gap-corrections.md`
+
+### Definition of Done Gate Mandated (2026-04-02)
+- **Mandate:** Strict Definition of Done gate added to ALL agent charters (Karthi, Senthil, Baskar, Basher, Jayanth).
+- **Core principle:** "I made the change" = Started. "The test passes" = Done. No exceptions.
+- **Four-gate structure enforced:** (1) Code written, (2) Target test passes, (3) No new failures, (4) Logged.
+- **Infrastructure blocker escape:** Agents may use `test.fixme()` ONLY for infrastructure-blocked tests (Stripe not configured, external service unavailable). Must state the blocker explicitly.
+- **Constraint addition:** Baskar's constraint line updated to allow `test.fixme()` for infrastructure blocks alongside `test.todo()` for unwritten tests. `test.skip()` remains banned — provides no visibility.
+- **Why:** Prevents false "done" declarations. Agents cannot declare work complete without evidence (passing test or explicit blocker). This is now non-negotiable across the squad.
+- **Files updated:**
+  - `.squad/agents/karthi/charter.md` — Definition of Done added after Plan-First Protocol
+  - `.squad/agents/senthil/charter.md` — Definition of Done added after Plan-First Protocol
+  - `.squad/agents/baskar/charter.md` — Definition of Done added after Plan-First Protocol; constraint line updated to include test.fixme()
+  - `.squad/agents/jayanth/charter.md` — Definition of Done added after Plan-First Protocol
+  - `.squad/agents/basher/charter.md` — Definition of Done added after Plan-First Protocol
+- **Decision record:** `.squad/decisions/inbox/jayanth-definition-of-done.md`

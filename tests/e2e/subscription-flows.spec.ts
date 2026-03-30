@@ -51,19 +51,19 @@ test.describe('Subscription & Payment Flows - E2E', () => {
       await expect(page.locator('text=Payment information required')).toBeVisible();
     });
 
-    test.todo('should handle failed payment — requires Stripe test mode with test card 4000000000000002 (INFRA-BLOCKED)');
+    test.fixme('should handle failed payment — requires Stripe test mode with test card 4000000000000002 (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should complete subscription with valid payment — requires Stripe test mode with test card 4242424242424242 (INFRA-BLOCKED)');
+    test.fixme('should complete subscription with valid payment — requires Stripe test mode with test card 4242424242424242 (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should create subscription in trialing status for trial users — requires Stripe trialing subscription creation (INFRA-BLOCKED)');
+    test.fixme('should create subscription in trialing status for trial users — requires Stripe trialing subscription creation (INFRA-BLOCKED)', async ({ page }) => {});
   });
 
   test.describe('Payment Execution', () => {
-    test.todo('should charge on successful subscription — requires Stripe payment charge execution (INFRA-BLOCKED)');
+    test.fixme('should charge on successful subscription — requires Stripe payment charge execution (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should handle duplicate payment prevention — requires Stripe duplicate charge detection and payment history (INFRA-BLOCKED)');
+    test.fixme('should handle duplicate payment prevention — requires Stripe duplicate charge detection and payment history (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should retry failed payment on renewal — requires Stripe webhook handling and time manipulation (INFRA-BLOCKED)');
+    test.fixme('should retry failed payment on renewal — requires Stripe webhook handling and time manipulation (INFRA-BLOCKED)', async ({ page }) => {});
   });
 
   test.describe('Subscription Management', () => {
@@ -75,9 +75,9 @@ test.describe('Subscription & Payment Flows - E2E', () => {
       await expect(page.locator('text=Next billing|Renews on')).toBeVisible();
     });
 
-    test.todo('should allow plan upgrade — requires Stripe subscription update API (INFRA-BLOCKED)');
+    test.fixme('should allow plan upgrade — requires Stripe subscription update API (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should allow plan downgrade — requires Stripe proration calculation and subscription downgrade (INFRA-BLOCKED)');
+    test.fixme('should allow plan downgrade — requires Stripe proration calculation and subscription downgrade (INFRA-BLOCKED)', async ({ page }) => {});
 
     test('should display payment history', async ({ page }) => {
       await page.goto('/billing/history');
@@ -89,7 +89,7 @@ test.describe('Subscription & Payment Flows - E2E', () => {
       await expect(page.locator('th:has-text("Status")')).toBeVisible();
     });
 
-    test.todo('should download invoice — requires Stripe invoice generation and download API (INFRA-BLOCKED)');
+    test.fixme('should download invoice — requires Stripe invoice generation and download API (INFRA-BLOCKED)', async ({ page }) => {});
   });
 
   test.describe('Cancellation Flow', () => {
@@ -110,11 +110,11 @@ test.describe('Subscription & Payment Flows - E2E', () => {
       await expect(page.locator('button:has-text("Keep Subscription")')).toBeVisible();
     });
 
-    test.todo('should support end-of-period cancellation — requires Stripe cancel_at_period_end subscription update (INFRA-BLOCKED)');
+    test.fixme('should support end-of-period cancellation — requires Stripe cancel_at_period_end subscription update (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should support immediate cancellation — requires Stripe immediate subscription cancellation (INFRA-BLOCKED)');
+    test.fixme('should support immediate cancellation — requires Stripe immediate subscription cancellation (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should show cancellation reason prompt — requires Stripe cancellation with feedback submission (INFRA-BLOCKED)');
+    test.fixme('should show cancellation reason prompt — requires Stripe cancellation with feedback submission (INFRA-BLOCKED)', async ({ page }) => {});
   });
 
   test.describe('Downgrade Flow', () => {
@@ -127,8 +127,8 @@ test.describe('Subscription & Payment Flows - E2E', () => {
   });
 
   test.describe('Error Handling', () => {
-    test.todo('should handle network errors gracefully — requires Stripe payment execution with network simulation (INFRA-BLOCKED)');
+    test.fixme('should handle network errors gracefully — requires Stripe payment execution with network simulation (INFRA-BLOCKED)', async ({ page }) => {});
 
-    test.todo('should handle Stripe API errors — requires Stripe test mode with expired test card 4000000000000069 (INFRA-BLOCKED)');
+    test.fixme('should handle Stripe API errors — requires Stripe test mode with expired test card 4000000000000069 (INFRA-BLOCKED)', async ({ page }) => {});
   });
 });
