@@ -587,3 +587,9 @@ ext() otherwise
 ### Patterns used
 - Same crypto.randomBytes(32).toString('hex') token generation pattern as PUT /users/me email change flow.
 - emailVerifiedToken field (not verificationToken) — consistent with existing User model naming.
+
+## 2026-03-30: API Contract Authority
+
+**API_CONTRACT.md is now the canonical route contract.** Must update it when adding/changing routes. Located at packages/api/API_CONTRACT.md.
+
+Backend route changes must be reflected in the contract BEFORE frontend or testing begins. All new routes must be documented with method, auth requirement, request/response shapes, and error codes before being considered complete.

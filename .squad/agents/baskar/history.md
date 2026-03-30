@@ -914,3 +914,9 @@ Write API and E2E tests for the dashboard quick actions feature (US-043).
 #### Graceful Skip Pattern (Reused)
 - `console.warn('[SKIP] ...')` + early `return` used for all state-dependent assertions.
 - E2E tests accept broader label variants (e.g., "Manage Billing" alongside "Manage Subscription").
+
+## 2026-03-30: Contract-First Pipeline Directive
+
+**Contract-first pipeline established.** Must read packages/api/API_CONTRACT.md before writing any tests. test.skip() is banned — use real tests or document as known bug.
+
+All tests must map to documented routes in the contract. Never invent test cases for undocumented endpoints. If a route is missing from the contract, raise it with Karthi before writing the test.

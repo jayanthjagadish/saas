@@ -483,3 +483,9 @@ IIFEs inside JSX are not proper React components — they bypass React's reconci
 - Use <Link> (react-router-dom) for navigation buttons that are just routes — avoids useNavigate boilerplate and is more semantic.
 - Check dashboardData?.user?.emailVerified for conditional UI from enriched backend data rather than the lighter User object from /users/me.
 - When replacing existing Quick Action sections, match card style exactly (p-6 not p-4, font-semibold title not uppercase tracking-wide) per the spec.
+
+## 2026-03-30: Contract-First API Calls
+
+**Contract-first pipeline:** read packages/api/API_CONTRACT.md before adding any calls to api.ts. Never invent routes.
+
+All API calls in the frontend must reference an existing route documented in packages/api/API_CONTRACT.md. If a route you need doesn't exist or isn't documented, raise it with Karthi and wait for the contract update before implementing the frontend feature.
