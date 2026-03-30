@@ -13,6 +13,8 @@ import DashboardPage from './pages/dashboard';
 import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import TeamPage from './pages/TeamPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
 import ProtectedRoute from './middleware/ProtectedRoute';
 import './index.css';
 
@@ -44,6 +46,8 @@ function App() {
             <Route path="/subscription" element={<ProtectedRoute><SubscriptionPage /></ProtectedRoute>} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+            <Route path="/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+            <Route path="/invite/:token" element={<AcceptInvitePage />} />
           </Routes>
         </Layout>
       </Router>

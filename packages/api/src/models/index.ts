@@ -5,6 +5,7 @@ import Plan from './Plan.js';
 import Session from './Session.js';
 import Team from './Team.js';
 import TeamMember from './TeamMember.js';
+import TeamInvite from './TeamInvite.js';
 
 // Ensure new associations (email verification fields are on User)
 
@@ -28,5 +29,10 @@ TeamMember.belongsTo(Team, { foreignKey: 'teamId' });
 TeamMember.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(TeamMember, { foreignKey: 'userId', as: 'teamMemberships' });
 
-export { User, Subscription, Payment, Plan, Session, Team, TeamMember };
-export default { User, Subscription, Payment, Plan, Session, Team, TeamMember };
+// TeamInvite associations
+Team.hasMany(TeamInvite, { foreignKey: 'teamId', as: 'invites' });
+TeamInvite.belongsTo(Team, { foreignKey: 'teamId' });
+TeamInvite.belongsTo(User, { foreignKey: 'invitedById', as: 'invitedBy' });
+
+export { User, Subscription, Payment, Plan, Session, Team, TeamMember, TeamInvite };
+export default { User, Subscription, Payment, Plan, Session, Team, TeamMember, TeamInvite };

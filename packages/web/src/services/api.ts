@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamInvite } from '../types/api';
 
 /**
  * API Service Layer
@@ -103,12 +103,14 @@ class ApiService {
     return response.data;
   }
 
-  async forgotPassword(email: string): Promise<void> {
-    await this.client.post('/auth/forgot-password', { email });
+  async forgotPassword(email: string): Promise<ApiResponse<{ message: string }>> {
+    const response = await this.client.post<ApiResponse<{ message: string }>>('/auth/forgot-password', { email });
+    return response.data;
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    await this.client.post('/auth/reset-password', { token, newPassword });
+  async resetPassword(token: string, password: string): Promise<ApiResponse<{ message: string }>> {
+    const response = await this.client.post<ApiResponse<{ message: string }>>('/auth/reset-password', { token, password });
+    return response.data;
   }
 
   async login(payload: LoginRequest): Promise<ApiResponse<AuthTokens>> {
@@ -192,6 +194,33 @@ class ApiService {
 
   async getDashboard(): Promise<ApiResponse<DashboardData>> {
     const response = await this.client.get<ApiResponse<DashboardData>>('/dashboard/me/dashboard');
+    return response.data;
+  }
+
+  // ===== Team Endpoints =====
+
+  async getTeam(): Promise<ApiResponse<Team | null>> {
+    const response = await this.client.get<ApiResponse<Team | null>>('/teams/me');
+    return response.data;
+  }
+
+  async getTeamInvites(): Promise<ApiResponse<TeamInvite[]>> {
+    const response = await this.client.get<ApiResponse<TeamInvite[]>>('/teams/me/invites');
+    return response.data;
+  }
+
+  async createInvite(email: string): Promise<ApiResponse<{ id: string; email: string; token: string }>> {
+    const response = await this.client.post<ApiResponse<{ id: string; email: string; token: string }>>('/teams/me/invites', { email });
+    return response.data;
+  }
+
+  async removeMember(memberId: string): Promise<ApiResponse<{ removed: boolean }>> {
+    const response = await this.client.delete<ApiResponse<{ removed: boolean }>>(`/teams/me/members/${memberId}`);
+    return response.data;
+  }
+
+  async acceptInvite(token: string): Promise<ApiResponse<{ joined: boolean }>> {
+    const response = await this.client.post<ApiResponse<{ joined: boolean }>>(`/teams/invites/${token}/accept`);
     return response.data;
   }
 

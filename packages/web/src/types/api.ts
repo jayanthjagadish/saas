@@ -71,6 +71,30 @@ export interface Payment {
   createdAt: string;
 }
 
+export interface TeamMember {
+  id: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+  user: { id: string; name: string | null; email: string } | null;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  ownerId: string;
+  memberCount: number;
+  members: TeamMember[];
+}
+
+export interface TeamInvite {
+  id: string;
+  email: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface DashboardData {
   user: { name: string | null; email: string; createdAt: string };
   subscription: {

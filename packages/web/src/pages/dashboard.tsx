@@ -2,7 +2,74 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiService from '../services/api';
-import type { User } from '../types/api';
+import type { User, DashboardData } from '../types/api';
+
+function DashboardOverviewCard({ data }: { data: DashboardData }) {
+  const sub = data.subscription;
+  const team = data.team;
+  const borderColor =
+    !sub || sub.status === 'past_due' || (team && team.memberCount >= team.memberLimit)
+      ? 'border-red-500'
+      : sub.cancelAtPeriodEnd || (sub.daysUntilRenewal !== null && sub.daysUntilRenewal <= 7) ||
+        (team && team.memberCount >= Math.floor(team.memberLimit * 0.8))
+      ? 'border-yellow-500'
+      : 'border-green-500';
+
+  const tierColors: Record<string, string> = {
+    free: 'bg-gray-100 text-gray-700',
+    pro: 'bg-blue-100 text-blue-700',
+    enterprise: 'bg-purple-100 text-purple-700',
+  };
+
+  return (
+    <div className={`bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 ${borderColor}`}>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">
+          {sub?.planName ?? 'Free'} Plan
+        </h2>
+        <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${tierColors[sub?.tier ?? 'free'] ?? tierColors.free}`}>
+          {sub?.tier ?? 'free'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Members */}
+        {team && (
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Team Members</p>
+            <p className="text-lg font-semibold">{team.memberCount} / {team.memberLimit}</p>
+            <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full ${team.memberCount >= team.memberLimit ? 'bg-red-500' : 'bg-primary-600'}`}
+                style={{ width: `${Math.min(100, (team.memberCount / team.memberLimit) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Renewal */}
+        {sub?.currentPeriodEnd && (
+          <div>
+            <p className="text-sm text-gray-500 mb-1">Renews</p>
+            <p className="text-lg font-semibold">
+              {sub.daysUntilRenewal !== null ? `in ${sub.daysUntilRenewal} days` : '—'}
+            </p>
+            <p className="text-xs text-gray-400">{new Date(sub.currentPeriodEnd).toLocaleDateString()}</p>
+          </div>
+        )}
+
+        {/* Next billing */}
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Next Billing</p>
+          <p className="text-lg font-semibold">
+            {sub && sub.priceMonthly > 0 ? `$${sub.priceMonthly.toFixed(2)}` : '$0.00'}
+          </p>
+          <p className="text-xs text-gray-400">per month</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -91,74 +158,7 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
 
         {/* ── Overview Card ─────────────────────────────────────────── */}
-        {dashboardData && (
-          (() => {
-            const sub = dashboardData.subscription;
-            const team = dashboardData.team;
-            const borderColor =
-              !sub || sub.status === 'past_due' || (team && team.memberCount >= team.memberLimit)
-                ? 'border-red-500'
-                : sub.cancelAtPeriodEnd || (sub.daysUntilRenewal !== null && sub.daysUntilRenewal <= 7) ||
-                  (team && team.memberCount >= Math.floor(team.memberLimit * 0.8))
-                ? 'border-yellow-500'
-                : 'border-green-500';
-
-            const tierColors: Record<string, string> = {
-              free: 'bg-gray-100 text-gray-700',
-              pro: 'bg-blue-100 text-blue-700',
-              enterprise: 'bg-purple-100 text-purple-700',
-            };
-
-            return (
-              <div className={`bg-white rounded-lg shadow-sm p-6 mb-6 border-l-4 ${borderColor}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {sub?.planName ?? 'Free'} Plan
-                  </h2>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${tierColors[sub?.tier ?? 'free'] ?? tierColors.free}`}>
-                    {sub?.tier ?? 'free'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Members */}
-                  {team && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Team Members</p>
-                      <p className="text-lg font-semibold">{team.memberCount} / {team.memberLimit}</p>
-                      <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full ${team.memberCount >= team.memberLimit ? 'bg-red-500' : 'bg-primary-600'}`}
-                          style={{ width: `${Math.min(100, (team.memberCount / team.memberLimit) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Renewal */}
-                  {sub?.currentPeriodEnd && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Renews</p>
-                      <p className="text-lg font-semibold">
-                        {sub.daysUntilRenewal !== null ? `in ${sub.daysUntilRenewal} days` : '—'}
-                      </p>
-                      <p className="text-xs text-gray-400">{new Date(sub.currentPeriodEnd).toLocaleDateString()}</p>
-                    </div>
-                  )}
-
-                  {/* Next billing */}
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Next Billing</p>
-                    <p className="text-lg font-semibold">
-                      {sub && sub.priceMonthly > 0 ? `$${sub.priceMonthly.toFixed(2)}` : '$0.00'}
-                    </p>
-                    <p className="text-xs text-gray-400">per month</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })()
-        )}
+        {dashboardData && <DashboardOverviewCard data={dashboardData} />}
 
         {/* ── Quick Actions ─────────────────────────────────────────── */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
@@ -172,9 +172,8 @@ export default function DashboardPage() {
               ↑ Upgrade Plan
             </button>
             <button
-              disabled
-              title="Team invites coming soon"
-              className="px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed"
+              onClick={() => navigate('/team')}
+              className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-200"
             >
               + Invite Member
             </button>

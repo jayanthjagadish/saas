@@ -426,3 +426,27 @@ Baskar's E2E tests revealed 4 critical auth bugs:
 ### Team Coordination (US-030/US-040)
 - Decision document created: `.squad/decisions/inbox/karthi-team-model.md`
 
+
+### US-031/US-032/US-033 — Team Invite Flow & Member Removal
+**Date:** 2026-03-30
+**Stories:** US-031 (Create Invite), US-032 (Accept/Decline), US-033 (Remove Member)
+
+#### Files Created
+- `packages/api/src/models/TeamInvite.ts` — NEW model (team_invites table)
+
+#### Files Modified
+- `packages/api/src/models/index.ts` — Added TeamInvite import and associations
+- `packages/api/src/routes/teams.ts` — Added 5 new routes
+
+#### Routes Added
+- `POST /teams/me/invites` — Create invite (owner/admin only, enforces plan member limit)
+- `GET /teams/me/invites` — List pending invites for the caller's team
+- `POST /teams/invites/:token/accept` — Accept invite (email must match, re-checks limit)
+- `POST /teams/invites/:token/decline` — Decline invite
+- `DELETE /teams/me/members/:memberId` — Remove team member (owner/admin only, cannot remove owner)
+
+#### Key Decisions
+- Token: 64-char hex via crypto.randomBytes(32), expires 7 days after creation
+- Email match enforced at acceptance (403 EMAIL_MISMATCH if mismatch)
+- Member limit (Plan.max_members) checked at both invite creation AND acceptance
+- getUserTeam helper shared across invite and remove routes

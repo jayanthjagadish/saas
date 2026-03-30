@@ -247,7 +247,23 @@ TypeScript: 0 errors.
 
 
 
-### 2026-03-30T13:37:31Z — US-040/043 Dashboard Frontend (Sprint Complete)
+### 2026-03-30 — Implemented US-031/032 Team Management UI + US-004 Password Reset Refresh
+
+**Team Management (US-031/032):**
+- Added `TeamMember`, `Team`, `TeamInvite` interfaces to `types/api.ts`
+- Added team API methods to `services/api.ts`: `getTeam`, `getTeamInvites`, `createInvite`, `removeMember`, `acceptInvite`
+- Created `pages/TeamPage.tsx`: full team management with member list (role badges, remove button), invite-by-email form (error codes mapped to user-friendly messages), pending invites list
+- Created `pages/AcceptInvitePage.tsx`: spinner → success (auto-redirect to dashboard) / error (with specific error code messages) state machine
+- Added routes: `/team` (ProtectedRoute) and `/invite/:token` (public) in `App.tsx`
+- Dashboard Quick Actions: Invite Member button now navigates to `/team` (was disabled)
+
+**Password Reset API refresh (US-004):**
+- Updated `forgotPassword` to return `ApiResponse<{ message: string }>` (was `void`)
+- Updated `resetPassword` to return `ApiResponse<{ message: string }>`, renamed param `newPassword` → `password` to match backend contract, request body updated accordingly
+- Existing pages at `pages/auth/forgot-password.tsx` and `pages/auth/reset-password.tsx` already in place and wired; routes and LoginPage "Forgot password?" link were already present
+
+**TypeScript:** 0 errors.
+
 
 **Delivered:**
 - DashboardData interface in packages/web/src/types/api.ts
@@ -264,3 +280,21 @@ TypeScript: 0 errors.
 - Absolute localhost URLs in .env bypass Vite proxy — always use relative /api
 
 **Anticipatory E2E tests ready (Baskar):** 	ests/e2e/dashboard.spec.ts (5 tests, all fail as feature gap)
+
+## 2026-03-30 — Fixed React white-screen crash (dashboard IIFE)
+
+**Task:** Diagnose and fix blank-page crash reported by Playwright smoke tests.
+
+**Root Cause:** packages/web/src/pages/dashboard.tsx used an IIFE (immediately invoked function expression) inside JSX for the Overview Card:
+
+`	sx
+{dashboardData && (
+  (() => { /* logic */ return <div>...</div>; })()
+)}
+`
+
+IIFEs inside JSX are not proper React components — they bypass React's reconciliation, have no error boundary isolation, and any throw inside propagates uncaught to the root, unmounting the entire tree (white screen).
+
+**Fix:** Extracted the IIFE into a named DashboardOverviewCard functional component defined above DashboardPage. Replaced the IIFE call site with {dashboardData && <DashboardOverviewCard data={dashboardData} />}. Also added DashboardData to the type import.
+
+**Verification:** 	sc --noEmit passes (exit 0); ite build succeeds (150 modules, no errors).

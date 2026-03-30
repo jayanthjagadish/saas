@@ -580,3 +580,34 @@ All 5 failures are **expected — features not yet shipped to frontend**:
 **Action items still open:**
 - Run npx playwright install to fix Firefox/WebKit missing browser binaries
 - Auth E2E: 3 real Chromium failures remain (Senthil to address login/signup error display)
+
+
+## 2026-03-30 - Team & Password-Reset Test Deliverables
+
+### Task
+Requested by jayanth.jagadish. Create API and E2E tests for team invite management and password-reset flows.
+
+### Work Completed
+1. **	ests/api/invite.test.ts** (new)
+   - POST /teams/me/invites: auth guard, missing-email 422, valid invite (201/404/409/422)
+   - GET /teams/me/invites: auth guard, returns array of pending invites
+   - DELETE /teams/me/members/:id: auth guard, 404 for non-existent member
+
+2. **	ests/e2e/team.spec.ts** (new)
+   - Team Management Page: navigate to /team, members section, invite form, disabled button on empty email
+   - Password Reset Flow: forgot-password page, form submission, forgot-password link on login, invalid-token error
+
+3. **	ests/api/password-reset.test.ts** (new)
+   - POST /auth/forgot-password: known email 200, unknown email anti-enum, missing email 400/422
+   - POST /auth/reset-password: invalid token rejected
+
+### E2E Run Results (chromium)
+- **4 passed**: navigate-to-team (fallback goto), forgot-password accessible, form sends request, reset-password invalid token
+- **4 failed (feature gaps — not bugs in tests)**:
+  - 	eam page shows members section: /team page lacks "Team Management" heading → **UI feature missing**
+  - invite form is present: no placeholder="colleague@" input or "Send Invite" button → **UI feature missing**
+  - invite button is disabled with empty email: invite button absent → **UI feature missing**
+  - login page has forgot password link: /auth/login has no "Forgot Password" link → **UI feature missing**
+
+### Verdict
+All failures are feature gaps (team management UI + forgot-password link on login) — no test bugs. API tests ready to run against live server.
