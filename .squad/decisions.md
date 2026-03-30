@@ -454,3 +454,38 @@
 
 **Files Modified:** Backlog created at .squad/backlog.md
 
+### 23. EPIC-3 & EPIC-4 Billing Integration Complete (Sprint 2)
+**Status:** Completed  
+**Owner:** Copilot (Senthil + Karthi collaboration)  
+**Date:** 2026-03-31  
+**Commit:** 613a9a52
+
+**Summary:** Full-stack billing integration wired end-to-end. Both the Dashboard and SubscriptionPage now consume live data from the API with no placeholder stubs remaining.
+
+**Backend changes (EPIC-3 — Stripe Integration):**
+- `GET /subscriptions/me` fixed to return a single active subscription with plan details; `formatSubscriptionResponse()` helper extracted (SRP); `STATUS_PRIORITY` ordering ensures active subscriptions surface first; response shape satisfies both Dashboard (camelCase ISO dates) and SubscriptionPage (Unix timestamp)
+- `GET /payments/me` implemented with real `Payment` model queries scoped by `userId`; `createdAt` mapped to `date` field expected by SubscriptionPage
+- `customer.subscription.updated` webhook handler added in `stripe.ts`; `STRIPE_STATUS_MAP` provides idempotent status transitions; `status`, `currentPeriodEnd`, and `cancelAtPeriodEnd` updated atomically
+
+**Frontend changes (EPIC-4 — Dashboard & SubscriptionPage):**
+- Dashboard dead buttons wired: Upgrade → `/subscription`, Cancel → `/subscription`, Choose a Plan → `/pricing`
+- Plan name display fixed: renders `plan.name` instead of raw `planId` UUID
+- Cancellation pending banner added with Reactivate action
+- Billing history placeholder replaced with link to `/subscription`
+- SubscriptionPage: safe date handling (Unix timestamp + ISO fallback), plan name fallback, `alert()` calls removed
+- PricingPage upgrade buttons wired to `/checkout?plan_id=`
+- `/subscription` route added to `App.tsx`
+- `Subscription` type extended: `cancellation_pending` status, `plan` object, `plan_name`, `current_period_end`, `price_display`
+
+**Files Modified:**
+- `packages/api/src/routes/subscriptions.ts`, `payments.ts`, `services/stripe.ts`, `app.ts`
+- `packages/web/src/pages/dashboard.tsx`, `SubscriptionPage.tsx`
+- `packages/web/src/components/PlanComparison.tsx`
+- `packages/web/src/types/api.ts`, `App.tsx`
+- Plus `.squad/agents/`, `tests/e2e/`, `playwright.config.ts`, `vite.config.ts`
+
+**Rationale:**
+- EPIC-3 requirement: Stripe is source of truth; DB state must reflect webhook events atomically
+- EPIC-4 requirement: Dashboard buttons and plan displays must consume live API data, not hardcoded stubs
+- `cancel_at_period_end` pattern preserves user access until period end, reducing support burden
+
