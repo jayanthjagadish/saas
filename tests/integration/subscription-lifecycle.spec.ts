@@ -8,14 +8,15 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   createMockSubscription,
+  createMockPayment,
   subscriptionLifecycles,
   paymentScenarios,
-} from '../../utils/subscription-mocks';
+} from '../utils/subscription-mocks';
 import {
   mockStripeClient,
   stripeWebhookEvents,
-} from '../../utils/stripe-mocks';
-import { createMockUser } from '../../utils/auth-mocks';
+} from '../utils/stripe-mocks';
+import { createMockUser } from '../utils/auth-mocks';
 
 describe('Subscription Lifecycle - Integration Tests', () => {
   let mockStripe: any;
@@ -100,10 +101,16 @@ describe('Subscription Lifecycle - Integration Tests', () => {
     });
 
     it('should handle multiple consecutive renewals', async () => {
+      const period = 86400 * 30 * 1000;
+      const t0 = new Date('2024-01-01T00:00:00.000Z');
+      const t1 = new Date(t0.getTime() + period);
+      const t2 = new Date(t1.getTime() + period);
+      const t3 = new Date(t2.getTime() + period);
+
       const renewals = [
-        createMockSubscription({ status: 'active' }),
-        createMockSubscription({ status: 'active' }),
-        createMockSubscription({ status: 'active' }),
+        createMockSubscription({ status: 'active', current_period_start: t0, current_period_end: t1 }),
+        createMockSubscription({ status: 'active', current_period_start: t1, current_period_end: t2 }),
+        createMockSubscription({ status: 'active', current_period_start: t2, current_period_end: t3 }),
       ];
 
       renewals.forEach((sub, idx) => {

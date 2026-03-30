@@ -14,7 +14,7 @@ import {
   verifyPassword,
   createMockUser,
   mockAuthContext,
-} from '../../utils/auth-mocks';
+} from '../utils/auth-mocks';
 
 describe('Auth Service - Unit Tests', () => {
   describe('Token Generation', () => {

@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import {
   createMockPayment,
   paymentScenarios,
-} from '../../utils/subscription-mocks';
+} from '../utils/subscription-mocks';
 
 describe('Payment Service - Edge Cases', () => {
   describe('Duplicate Payment Detection', () => {

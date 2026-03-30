@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 
 export const mockStripeClient = () => {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
-    apiVersion: '2024-04-10',
+    apiVersion: '2023-10-16',
   });
 
   return {
