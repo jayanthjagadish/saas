@@ -1,0 +1,83 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "Fenster" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: Fenster
+      - generic [ref=e9]:
+        - link "Login" [ref=e10] [cursor=pointer]:
+          - /url: /login
+        - link "Sign Up" [ref=e11] [cursor=pointer]:
+          - /url: /signup
+  - main [ref=e12]:
+    - generic [ref=e14]:
+      - heading "Login" [level=2] [ref=e15]
+      - generic [ref=e16]: Please verify your email before logging in
+      - form "login-form" [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Email
+          - textbox "Email" [ref=e20]:
+            - /placeholder: you@example.com
+            - text: reload-test-1774889554130@example.com
+        - generic [ref=e21]:
+          - generic [ref=e22]: Password
+          - generic [ref=e23]:
+            - textbox "Password" [ref=e24]:
+              - /placeholder: ••••••
+              - text: SecureP@ssw0rd!
+            - button "Show password" [ref=e25]: Show
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - checkbox "Remember Me" [ref=e28]
+            - generic [ref=e29]: Remember Me
+          - link "Forgot password?" [ref=e30] [cursor=pointer]:
+            - /url: /auth/forgot-password
+        - button "Login" [ref=e31]
+      - paragraph [ref=e32]:
+        - text: Don't have an account?
+        - link "Sign up" [ref=e33] [cursor=pointer]:
+          - /url: /signup
+  - contentinfo [ref=e34]:
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - heading "Product" [level=3] [ref=e38]
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - link "Features" [ref=e41] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e42]:
+              - link "Pricing" [ref=e43] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e44]:
+          - heading "Company" [level=3] [ref=e45]
+          - list [ref=e46]:
+            - listitem [ref=e47]:
+              - link "About" [ref=e48] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e49]:
+              - link "Contact" [ref=e50] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e51]:
+          - heading "Legal" [level=3] [ref=e52]
+          - list [ref=e53]:
+            - listitem [ref=e54]:
+              - link "Privacy" [ref=e55] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e56]:
+              - link "Terms" [ref=e57] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e58]:
+          - heading "Social" [level=3] [ref=e59]
+          - list [ref=e60]:
+            - listitem [ref=e61]:
+              - link "Twitter" [ref=e62] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e63]:
+              - link "GitHub" [ref=e64] [cursor=pointer]:
+                - /url: "#"
+      - paragraph [ref=e66]: © 2026 Fenster. All rights reserved.
+```

@@ -1,0 +1,83 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "Fenster" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: Fenster
+      - generic [ref=e9]:
+        - link "Login" [ref=e10] [cursor=pointer]:
+          - /url: /login
+        - link "Sign Up" [ref=e11] [cursor=pointer]:
+          - /url: /signup
+  - main [ref=e12]:
+    - generic [ref=e14]:
+      - heading "Reset Password" [level=2] [ref=e15]
+      - paragraph [ref=e16]: Enter your new password below
+      - generic [ref=e17]: Request failed with status code 500
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]: New Password
+          - generic [ref=e21]:
+            - textbox "New Password" [ref=e22]:
+              - /placeholder: ••••••••
+              - text: NewStr0ng!Pass
+            - button "Show password" [ref=e23]: Show
+          - generic [ref=e25]:
+            - generic [ref=e26]: "Password strength:"
+            - generic [ref=e27]: Strong
+        - generic [ref=e30]:
+          - generic [ref=e31]: Confirm New Password
+          - generic [ref=e32]:
+            - textbox "Confirm New Password" [ref=e33]:
+              - /placeholder: ••••••••
+              - text: NewStr0ng!Pass
+            - button "Show password" [ref=e34]: Show
+        - button "Reset Password" [ref=e35]
+      - paragraph [ref=e36]:
+        - text: Remember your password?
+        - link "Back to login" [ref=e37] [cursor=pointer]:
+          - /url: /login
+  - contentinfo [ref=e38]:
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - heading "Product" [level=3] [ref=e42]
+          - list [ref=e43]:
+            - listitem [ref=e44]:
+              - link "Features" [ref=e45] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e46]:
+              - link "Pricing" [ref=e47] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e48]:
+          - heading "Company" [level=3] [ref=e49]
+          - list [ref=e50]:
+            - listitem [ref=e51]:
+              - link "About" [ref=e52] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e53]:
+              - link "Contact" [ref=e54] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e55]:
+          - heading "Legal" [level=3] [ref=e56]
+          - list [ref=e57]:
+            - listitem [ref=e58]:
+              - link "Privacy" [ref=e59] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e60]:
+              - link "Terms" [ref=e61] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e62]:
+          - heading "Social" [level=3] [ref=e63]
+          - list [ref=e64]:
+            - listitem [ref=e65]:
+              - link "Twitter" [ref=e66] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e67]:
+              - link "GitHub" [ref=e68] [cursor=pointer]:
+                - /url: "#"
+      - paragraph [ref=e70]: © 2026 Fenster. All rights reserved.
+```

@@ -35,3 +35,16 @@ This is a subscription-based SaaS with aesthetic UI. Focus on payment reliabilit
 
 ### Architecture Standards Adoption (2026-03-30)
 - Architecture patterns skill created. All agent charters updated with SOLID, Clean Architecture, Repository Pattern, 12-Factor. Skill at .squad/skills/architecture-patterns/SKILL.md
+
+### Test Infrastructure Consolidation (2026-04-01)
+- **Problem identified:** Test suite had 500+ tests running chaotically due to duplicate test files across `tests/e2e/` and `packages/web/e2e/`, stale selectors, and no globalSetup for test user creation
+- **Canonical location established:** `tests/e2e/` is the single source of truth for all E2E tests
+- **Consolidation completed:**
+  - Moved actively maintained `packages/web/e2e/auth-flow.spec.ts` (347 lines, comprehensive) → replaced stale `tests/e2e/auth-flow.spec.ts` (22 lines, skipped)
+  - Moved `packages/web/e2e/password-reset.spec.ts` → `tests/e2e/password-reset.spec.ts`
+  - Deleted duplicate `tests/e2e/auth-flows.spec.ts` (note the 's')
+  - Removed source files from `packages/web/e2e/` after migration
+- **GlobalSetup added:** Created `tests/helpers/global-setup.ts` to ensure test user exists before Playwright runs
+- **DB schema validation:** Created `tests/helpers/check-db-schema.cjs` to verify critical columns (users, subscriptions, sessions) exist before tests run
+- **Playwright config updated:** Added `globalSetup: './tests/helpers/global-setup.ts'` to `playwright.config.ts`
+- **Result:** Single source of truth for E2E tests, automated test user creation, DB schema validation gate before test execution

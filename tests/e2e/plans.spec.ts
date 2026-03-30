@@ -67,9 +67,21 @@ test.describe('Plans & Subscription - E2E', () => {
       expect(count).toBeGreaterThan(0);
     });
 
-    test.skip('should show upgrade options for logged-in users - requires authentication', async ({ page }) => {
-      // NOTE: This test requires authentication
-      // In practice, you'd login first or use authenticated context
+    test('should show upgrade options for logged-in users', async ({ page }) => {
+      // Login first
+      await page.goto('/login');
+      await page.fill('input[name="email"]', 'test@fenster-test.com');
+      await page.fill('input[name="password"]', 'SecureTest123!@#');
+      await page.click('button[type="submit"]');
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+      
+      // Navigate to pricing
+      await page.goto('/pricing');
+      
+      // Should show plan action buttons for authenticated users
+      const buttons = page.getByRole('button', { name: /Upgrade|Manage|Get started/ });
+      const count = await buttons.count();
+      expect(count).toBeGreaterThan(0);
     });
   });
 
@@ -82,9 +94,16 @@ test.describe('Plans & Subscription - E2E', () => {
       await expect(page).toHaveURL(/.*login/, { timeout: 10000 });
     });
 
-    test.skip('should display current plan on dashboard - requires authenticated session', async ({ page }) => {
-      // NOTE: Requires authenticated session with active subscription
-      // Correct selector: page.getByRole('heading', { name: 'Subscription' })
+    test('should display current plan on dashboard', async ({ page }) => {
+      // Login first
+      await page.goto('/login');
+      await page.fill('input[name="email"]', 'test@fenster-test.com');
+      await page.fill('input[name="password"]', 'SecureTest123!@#');
+      await page.click('button[type="submit"]');
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+      
+      // Should show subscription heading
+      await expect(page.getByRole('heading', { name: 'Subscription' })).toBeVisible({ timeout: 10000 });
     });
   });
 

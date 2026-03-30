@@ -109,8 +109,17 @@ test.describe('Auth Flow - E2E', () => {
       await expect(page.locator('text=Invalid email or password')).toBeVisible({ timeout: 10000 });
     });
 
-    test.skip('should show error for unverified email - requires unverified test user', async ({ page }) => {
-      // NOTE: This test requires an unverified test user to exist
+    test('should show error for unverified email', async ({ page }) => {
+      // Test with an unverified user attempting login
+      // Note: This assumes an unverified test user exists in the system
+      await page.goto('/login');
+      await fillLoginForm(page, 'unverified@fenster-test.com', 'TestPassword123!@#');
+      await page.click(SELECTORS.LOGIN_SUBMIT_BTN);
+      
+      // Should show error for unverified email
+      const errorDiv = page.locator('div.bg-red-100.text-red-700');
+      await expect(errorDiv).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('text=verify|verification|not verified')).toBeVisible({ timeout: 5000 });
     });
 
     test('should show validation error for invalid email format', async ({ page }) => {
@@ -125,13 +134,38 @@ test.describe('Auth Flow - E2E', () => {
   });
 
   test.describe('Logout', () => {
-    test.skip('should logout and redirect to login page - requires authenticated session', async ({ page }) => {
-      // NOTE: This test requires logging in with a verified user first
-      // Correct selector: page.getByRole('button', { name: 'Logout' })
+    test('should logout and redirect to login page', async ({ page }) => {
+      // Login first
+      await page.goto('/login');
+      await fillLoginForm(page, 'test@fenster-test.com', 'SecureTest123!@#');
+      await page.click(SELECTORS.LOGIN_SUBMIT_BTN);
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+      
+      // Click logout button
+      await page.getByRole('button', { name: 'Logout' }).click();
+      
+      // Should redirect to login page
+      await page.waitForURL(/\/login/, { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login/);
     });
 
-    test.skip('should not access dashboard after logout - requires authenticated session', async ({ page }) => {
-      // NOTE: This test requires logging in with a verified user first
+    test('should not access dashboard after logout', async ({ page }) => {
+      // Login first
+      await page.goto('/login');
+      await fillLoginForm(page, 'test@fenster-test.com', 'SecureTest123!@#');
+      await page.click(SELECTORS.LOGIN_SUBMIT_BTN);
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 });
+      
+      // Logout
+      await page.getByRole('button', { name: 'Logout' }).click();
+      await page.waitForURL(/\/login/, { timeout: 10000 });
+      
+      // Try to navigate to dashboard
+      await page.goto('/dashboard');
+      
+      // Should redirect back to login
+      await page.waitForURL(/\/login/, { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login/);
     });
   });
 });

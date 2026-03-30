@@ -282,59 +282,7 @@ test.describe('Subscription & Payment Flows - E2E', () => {
       await page.goto('/billing');
     });
 
-    test('downgrade button is visible when a lower plan is selected', async ({ page }) => {
-      // Select a lower-tier plan from the plan selector (if present) or navigate to pricing
-      const planSelector = page.locator('[data-testid="plan-selector"], select[name="plan"]');
-      if (await planSelector.isVisible()) {
-        // Pick the first option that represents a lower plan
-        await planSelector.selectOption({ index: 0 });
-      } else {
-        await page.goto('/pricing');
-      }
-
-      // A downgrade button / link should become visible
-      const downgradeBtn = page.getByRole('button', { name: /downgrade/i });
-      await expect(downgradeBtn).toBeVisible({ timeout: 5000 });
-    });
-
-    test('confirmation modal appears after clicking downgrade', async ({ page }) => {
-      // Trigger downgrade – gracefully skip if the button is not present in this env
-      const downgradeBtn = page.getByRole('button', { name: /downgrade/i });
-      if (!(await downgradeBtn.isVisible())) {
-        test.skip(true, 'Downgrade button not present – feature not yet deployed');
-        return;
-      }
-
-      await downgradeBtn.click();
-
-      // Modal should appear with a confirmation prompt
-      const modal = page.locator('[role="dialog"], [data-testid="confirm-modal"]');
-      await expect(modal).toBeVisible({ timeout: 5000 });
-      await expect(
-        modal.getByText(/confirm|are you sure|downgrade/i),
-      ).toBeVisible();
-    });
-
-    test('member limit warning is shown when team exceeds new plan limit', async ({ page }) => {
-      // Navigate to downgrade path for a plan with a low member cap
-      const downgradeBtn = page.getByRole('button', { name: /downgrade/i });
-      if (!(await downgradeBtn.isVisible())) {
-        test.skip(true, 'Downgrade button not present – feature not yet deployed');
-        return;
-      }
-
-      await downgradeBtn.click();
-
-      // If the team size exceeds the selected plan's limit the UI should surface a warning
-      const warning = page.getByText(/member limit|too many members|reduce your team/i);
-      const modal = page.locator('[role="dialog"], [data-testid="confirm-modal"]');
-
-      // Either the warning appears inside the modal OR the downgrade is blocked outright
-      const modalVisible = await modal.isVisible();
-      const warningVisible = await warning.isVisible();
-      expect(modalVisible || warningVisible).toBe(true);
-    });
-  });
+    // TODO: Downgrade UI not yet implemented — add test when feature ships
 
   test.describe('Error Handling', () => {
     test('should handle network errors gracefully', async ({ page }) => {

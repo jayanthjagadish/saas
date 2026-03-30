@@ -1,0 +1,121 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "Fenster" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: Fenster
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Profile" [ref=e11] [cursor=pointer]:
+          - /url: /profile
+        - link "Billing" [ref=e12] [cursor=pointer]:
+          - /url: /billing
+        - link "Analytics" [ref=e13] [cursor=pointer]:
+          - /url: /analytics
+        - generic [ref=e14]: e2e-test-1774889542143@example.com
+        - button "Logout" [ref=e15]
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - heading "Dashboard" [level=1] [ref=e19]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Free Plan" [level=2] [ref=e22]
+          - generic [ref=e23]: free
+        - generic [ref=e24]:
+          - generic [ref=e25]:
+            - paragraph [ref=e26]: Team Members
+            - paragraph [ref=e27]: 1 / 5
+          - generic [ref=e30]:
+            - paragraph [ref=e31]: Renews
+            - paragraph [ref=e32]: in 30 days
+            - paragraph [ref=e33]: 4/29/2026
+          - generic [ref=e34]:
+            - paragraph [ref=e35]: Next Billing
+            - paragraph [ref=e36]: $0.00
+            - paragraph [ref=e37]: per month
+      - generic [ref=e38]:
+        - heading "Quick Actions" [level=2] [ref=e39]
+        - generic [ref=e40]:
+          - link "Invite Team Member →" [ref=e41] [cursor=pointer]:
+            - /url: /team
+          - link "Manage Subscription →" [ref=e42] [cursor=pointer]:
+            - /url: /subscription
+          - link "View Analytics →" [ref=e43] [cursor=pointer]:
+            - /url: /analytics
+      - generic [ref=e44]:
+        - heading "Account" [level=2] [ref=e45]
+        - generic [ref=e46]:
+          - paragraph [ref=e47]: "Name: E2E Test Company"
+          - paragraph [ref=e48]: "Email: e2e-test-1774889542143@example.com"
+          - paragraph [ref=e49]: "Member since: 3/30/2026"
+      - generic [ref=e50]:
+        - heading "Subscription" [level=2] [ref=e51]
+        - generic [ref=e52]:
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - paragraph [ref=e55]: Status
+              - paragraph [ref=e56]:
+                - generic [ref=e57]: Active
+            - generic [ref=e58]:
+              - paragraph [ref=e59]: Plan
+              - paragraph [ref=e60]: Free
+          - generic [ref=e61]:
+            - generic [ref=e62]:
+              - paragraph [ref=e63]: Current Period Start
+              - paragraph [ref=e64]: 3/30/2026
+            - generic [ref=e65]:
+              - paragraph [ref=e66]: Current Period End
+              - paragraph [ref=e67]: 4/29/2026
+          - generic [ref=e68]:
+            - button "Upgrade Plan" [ref=e69]
+            - button "Cancel Subscription" [ref=e70]
+      - generic [ref=e71]:
+        - heading "Billing History" [level=2] [ref=e72]
+        - paragraph [ref=e73]:
+          - button "View full billing history and invoices →" [ref=e74]
+          - text: Go to Subscription page
+  - contentinfo [ref=e75]:
+    - generic [ref=e76]:
+      - generic [ref=e77]:
+        - generic [ref=e78]:
+          - heading "Product" [level=3] [ref=e79]
+          - list [ref=e80]:
+            - listitem [ref=e81]:
+              - link "Features" [ref=e82] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e83]:
+              - link "Pricing" [ref=e84] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e85]:
+          - heading "Company" [level=3] [ref=e86]
+          - list [ref=e87]:
+            - listitem [ref=e88]:
+              - link "About" [ref=e89] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e90]:
+              - link "Contact" [ref=e91] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e92]:
+          - heading "Legal" [level=3] [ref=e93]
+          - list [ref=e94]:
+            - listitem [ref=e95]:
+              - link "Privacy" [ref=e96] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e97]:
+              - link "Terms" [ref=e98] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e99]:
+          - heading "Social" [level=3] [ref=e100]
+          - list [ref=e101]:
+            - listitem [ref=e102]:
+              - link "Twitter" [ref=e103] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e104]:
+              - link "GitHub" [ref=e105] [cursor=pointer]:
+                - /url: "#"
+      - paragraph [ref=e107]: © 2026 Fenster. All rights reserved.
+```
