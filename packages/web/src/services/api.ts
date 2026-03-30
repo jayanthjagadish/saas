@@ -72,15 +72,7 @@ class ApiService {
 
   // ===== Auth Endpoints =====
 
-  async register(payload: SignupRequest): Promise<ApiResponse<User>> {
-    const response = await this.client.post<ApiResponse<User>>('/auth/register', payload);
-    if (response.data.data && response.data.data.id) {
-      // Optionally auto-login after registration
-    }
-    return response.data;
-  }
-
-  // New signup endpoint for US-001 (keeps existing register for compatibility)
+  // Signup endpoint for US-001
   async signup(payload: { email: string; password: string; company_name: string }): Promise<ApiResponse<unknown>> {
     const response = await this.client.post<any>('/auth/signup', payload);
     // Backend returns { user_id, email, message } instead of ApiResponse format

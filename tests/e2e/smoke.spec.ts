@@ -49,13 +49,50 @@ test.describe('Smoke Tests', () => {
   });
 
   test('API health endpoint should respond', async ({ request }) => {
-    // Check if API is alive
     const response = await request.get('http://localhost:3001/health');
-    
     expect(response.status()).toBe(200);
-    
     const body = await response.json();
     expect(body).toHaveProperty('status');
+  });
+
+  test('POST /auth/signup exists and validates input (not 404)', async ({ request }) => {
+    const res = await request.post('http://localhost:3001/auth/signup', {
+      data: { email: 'x', password: 'weak' },
+    });
+    expect(res.status()).not.toBe(404);
+    expect(res.status()).toBe(400);
+  });
+
+  test('POST /auth/login exists and rejects bad creds (not 404)', async ({ request }) => {
+    const res = await request.post('http://localhost:3001/auth/login', {
+      data: { email: 'nobody@example.com', password: 'wrong' },
+    });
+    expect(res.status()).not.toBe(404);
+    expect([400, 401]).toContain(res.status());
+  });
+
+  test('POST /auth/refresh exists (not 404)', async ({ request }) => {
+    const res = await request.post('http://localhost:3001/auth/refresh');
+    expect(res.status()).not.toBe(404);
+    expect(res.status()).toBe(401);
+  });
+
+  test('GET /plans returns 200 with plans array', async ({ request }) => {
+    const res = await request.get('http://localhost:3001/plans');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  test('GET /subscriptions/me returns 401 without auth (not 404)', async ({ request }) => {
+    const res = await request.get('http://localhost:3001/subscriptions/me');
+    expect(res.status()).toBe(401);
+  });
+
+  test('GET /users/me returns 401 without auth (not 404)', async ({ request }) => {
+    const res = await request.get('http://localhost:3001/users/me');
+    expect(res.status()).toBe(401);
   });
 
   test('pricing page should load and display plans', async ({ page }) => {

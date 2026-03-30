@@ -1,60 +1,105 @@
-/**
- * Auth Flow E2E Tests Template (Playwright)
- *
- * Focus: Full user journeys from login through subscription
- * Coverage: Frontend → API → Stripe → Database roundtrips
- */
-
 import { test, expect } from '@playwright/test';
 
-test.describe('Auth Flows - E2E', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-  });
+const TEST_EMAIL = 'test@fenster-test.com';
+const TEST_PASSWORD = 'SecureTest123!@#';
 
-  test.describe('Signup Flow', () => {
-    test.skip('should complete signup with valid credentials - requires email verification', async ({ page }) => {
-      // NOTE: Actual signup requires email verification, so user won't be immediately logged in
-      // The app shows "Check your email to verify your account" message instead of redirecting to dashboard
-    });
+async function loginAsTestUser(page: any) {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(TEST_EMAIL);
+  await page.locator('#password').fill(TEST_PASSWORD);
+  await page.getByRole('button', { name: 'Login' }).click();
+  await page.waitForURL('**/dashboard', { timeout: 15000 });
+}
 
-    test('should reject weak passwords', async ({ page }) => {
-      await page.getByRole('link', { name: 'Sign Up' }).click();
-      await expect(page).toHaveURL(/.*signup/);
-
-      await page.getByLabel('Email').fill('newuser@example.com');
-      await page.getByLabel('Password').fill('123'); // Too weak
+test.describe('Auth Flows', () => {
+  test.describe('Signup', () => {
+    test('rejects password under 12 chars', async ({ page }) => {
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill('test-short@example.com');
+      await page.getByLabel('Password').fill('Short1!');
       await page.getByLabel('Company name').fill('Test Co');
-
       await page.getByRole('button', { name: 'Create account' }).click();
-
-      // Should show error
       await expect(page.locator('text=Password must be at least 12 characters')).toBeVisible();
     });
 
-    test.skip('should reject mismatched passwords - no confirmPassword field in UI', async ({ page }) => {
-      // NOTE: The actual SignupPage does not have a confirmPassword field
+    test('rejects missing uppercase', async ({ page }) => {
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill('test-noupper@example.com');
+      await page.getByLabel('Password').fill('alllowercase123!');
+      await page.getByLabel('Company name').fill('Test Co');
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        page.locator('text=/uppercase|must contain.*upper/i')
+      ).toBeVisible();
     });
 
-    test.skip('should reject duplicate email - requires existing user', async ({ page }) => {
-      // NOTE: Would require seeding a user via API first
+    test('rejects missing number', async ({ page }) => {
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill('test-nonum@example.com');
+      await page.getByLabel('Password').fill('NoNumberHere!!');
+      await page.getByLabel('Company name').fill('Test Co');
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        page.locator('text=/number|must contain.*digit/i')
+      ).toBeVisible();
+    });
+
+    test('rejects missing special char', async ({ page }) => {
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill('test-nospecial@example.com');
+      await page.getByLabel('Password').fill('NoSpecialChar123');
+      await page.getByLabel('Company name').fill('Test Co');
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        page.locator('text=/special|must contain.*symbol/i')
+      ).toBeVisible();
+    });
+
+    test('shows email verification message on success', async ({ page }) => {
+      const uniqueEmail = `e2e-${Date.now()}@example.com`;
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill(uniqueEmail);
+      await page.getByLabel('Password').fill('ValidPass123!@#');
+      await page.getByLabel('Company name').fill('E2E Test Co');
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        page.locator('text=/check your email|verify your|verification/i')
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test('shows error for duplicate email', async ({ page }) => {
+      const dupEmail = `dup-${Date.now()}@example.com`;
+
+      // First signup
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill(dupEmail);
+      await page.getByLabel('Password').fill('ValidPass123!@#');
+      await page.getByLabel('Company name').fill('First Co');
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        page.locator('text=/check your email|verify your|verification/i')
+      ).toBeVisible({ timeout: 10000 });
+
+      // Second signup with same email
+      await page.goto('/signup');
+      await page.getByLabel('Email').fill(dupEmail);
+      await page.getByLabel('Password').fill('ValidPass123!@#');
+      await page.getByLabel('Company name').fill('Second Co');
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(
+        page.locator('text=/already|exists|taken|registered/i')
+      ).toBeVisible({ timeout: 10000 });
     });
   });
 
-  test.describe('Login Flow', () => {
-    test.skip('should login with valid credentials - requires verified test user', async ({ page }) => {
-      // NOTE: Requires a verified test user account to exist in database
-    });
-
-    test('should reject invalid email', async ({ page }) => {
-      await page.getByRole('link', { name: 'Login' }).click();
-      await expect(page).toHaveURL(/.*login/);
-
-      await page.getByLabel('Email').fill('nonexistent@example.com');
-      await page.locator('#password').fill('anypassword');
+  test.describe('Login', () => {
+    test('rejects wrong password', async ({ page }) => {
+      await page.goto('/login');
+      await page.getByLabel('Email').fill(TEST_EMAIL);
+      await page.locator('#password').fill('WrongPassword999!');
 
       const responsePromise = page.waitForResponse(
-        (r) => r.url().includes('/auth/login') && r.status() === 401
+        (r: any) => r.url().includes('/auth/login') && r.status() === 401
       );
       await page.getByRole('button', { name: 'Login' }).click();
       await responsePromise;
@@ -62,13 +107,13 @@ test.describe('Auth Flows - E2E', () => {
       await expect(page.getByText('Invalid email or password')).toBeVisible();
     });
 
-    test('should reject wrong password', async ({ page }) => {
-      await page.getByRole('link', { name: 'Login' }).click();
-      await page.getByLabel('Email').fill('test@example.com');
-      await page.locator('#password').fill('WrongPassword');
+    test('rejects non-existent email', async ({ page }) => {
+      await page.goto('/login');
+      await page.getByLabel('Email').fill(`ghost-${Date.now()}@example.com`);
+      await page.locator('#password').fill('AnyPassword123!');
 
       const responsePromise = page.waitForResponse(
-        (r) => r.url().includes('/auth/login') && r.status() === 401
+        (r: any) => r.url().includes('/auth/login') && r.status() === 401
       );
       await page.getByRole('button', { name: 'Login' }).click();
       await responsePromise;
@@ -76,34 +121,28 @@ test.describe('Auth Flows - E2E', () => {
       await expect(page.getByText('Invalid email or password')).toBeVisible();
     });
 
-    test.skip('should lock account after 5 failed attempts - requires rate limiting', async ({ page }) => {
-      // NOTE: This test requires backend rate limiting to be configured
+    test('succeeds with test user and redirects to dashboard', async ({ page }) => {
+      await loginAsTestUser(page);
+      await expect(page).toHaveURL(/\/dashboard/);
     });
   });
 
-  test.describe('Token Refresh', () => {
-    test.skip('should automatically refresh access token - requires 11 min wait', async ({ page }) => {
-      // NOTE: This test would take 11+ minutes to run
-    });
+  test.describe('Logout', () => {
+    test('logs out and redirects to login', async ({ page }) => {
+      await loginAsTestUser(page);
+      await expect(page).toHaveURL(/\/dashboard/);
 
-    test.skip('should redirect to login if refresh fails - requires auth setup', async ({ page, context }) => {
-      // NOTE: Requires setting up expired/invalid tokens
-    });
-  });
+      // Find and click logout — try nav button or link
+      const logoutBtn = page.getByRole('button', { name: /logout|sign out/i });
+      const logoutLink = page.getByRole('link', { name: /logout|sign out/i });
 
-  test.describe('Logout Flow', () => {
-    test.skip('should logout and clear tokens - requires authenticated session', async ({ page, context }) => {
-      // NOTE: Requires logging in with a verified user first
-    });
-  });
+      if (await logoutBtn.isVisible()) {
+        await logoutBtn.click();
+      } else {
+        await logoutLink.click();
+      }
 
-  test.describe('Session Persistence', () => {
-    test.skip('should persist session on page reload - requires authenticated session', async ({ page }) => {
-      // NOTE: Requires logging in with a verified user first
-    });
-
-    test.skip('should persist session across different pages - /billing and /settings do not exist', async ({ page }) => {
-      // NOTE: These routes are not implemented in the app yet
+      await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     });
   });
 });

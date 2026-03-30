@@ -2,11 +2,11 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Dashboard', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/auth/login');
-    await page.fill('[name="email"], input[type="email"]', 'test@fenster-test.com');
-    await page.fill('[name="password"], input[type="password"]', 'SecureTest123!@#');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
+    await page.goto('/login');
+    await page.getByLabel('Email').fill('test@fenster-test.com');
+    await page.locator('#password').fill('SecureTest123!@#');
+    await page.getByRole('button', { name: 'Login' }).click();
+    await page.waitForURL('**/dashboard', { timeout: 15000 });
   });
 
   test('should display dashboard heading', async ({ page }) => {
