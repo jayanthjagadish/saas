@@ -49,6 +49,12 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Dashboard
                   </Link>
+                  <Link
+                    to="/profile"
+                    className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                  >
+                    Profile
+                  </Link>
                   <div className="text-sm text-gray-700 px-3">{auth.user?.email}</div>
                   <button
                     onClick={handleLogout}

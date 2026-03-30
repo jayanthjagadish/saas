@@ -6,6 +6,7 @@ export interface IUser {
   email: string;
   password: string;
   name?: string;
+  avatarUrl?: string | null;
   stripeCustomerId?: string;
   verified: boolean;
   emailVerifiedToken?: string | null;
@@ -22,6 +23,7 @@ export class User extends Model<IUser> implements IUser {
   declare email: string;
   declare password: string;
   declare name?: string;
+  declare avatarUrl?: string | null;
   declare stripeCustomerId?: string;
   declare verified: boolean;
   declare emailVerifiedToken?: string | null;
@@ -53,6 +55,11 @@ User.init(
     name: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    avatarUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'avatar_url',
     },
     stripeCustomerId: {
       type: DataTypes.STRING,

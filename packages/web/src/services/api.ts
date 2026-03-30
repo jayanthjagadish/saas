@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
-import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamInvite } from '../types/api';
+import type { ApiResponse, User, AuthTokens, LoginRequest, SignupRequest, Subscription, Payment, DashboardData, Team, TeamMember, TeamInvite, UserProfile } from '../types/api';
 
 /**
  * API Service Layer
@@ -162,6 +162,16 @@ class ApiService {
   async updateUser(updates: Partial<User>): Promise<ApiResponse<User>> {
     const response = await this.client.put<ApiResponse<User>>('/users/me', updates);
     return response.data;
+  }
+
+  async getProfile(): Promise<ApiResponse<UserProfile>> {
+    const res = await this.client.get('/users/me');
+    return res.data;
+  }
+
+  async updateProfile(data: { name?: string; email?: string }): Promise<ApiResponse<UserProfile>> {
+    const res = await this.client.put('/users/me', data);
+    return res.data;
   }
 
   // ===== Subscription Endpoints =====

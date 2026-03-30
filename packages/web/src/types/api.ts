@@ -95,6 +95,14 @@ export interface TeamInvite {
   createdAt: string;
 }
 
+export interface UserProfile {
+  id: number;
+  email: string;
+  name: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
 export interface DashboardData {
   user: { name: string | null; email: string; createdAt: string };
   subscription: {

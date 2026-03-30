@@ -298,3 +298,24 @@ IIFEs inside JSX are not proper React components — they bypass React's reconci
 **Fix:** Extracted the IIFE into a named DashboardOverviewCard functional component defined above DashboardPage. Replaced the IIFE call site with {dashboardData && <DashboardOverviewCard data={dashboardData} />}. Also added DashboardData to the type import.
 
 **Verification:** 	sc --noEmit passes (exit 0); ite build succeeds (150 modules, no errors).
+
+### 2026-03-31 — Implemented US-005 Profile Management UI
+
+**Task:** Build ProfilePage where users can view and edit their name and email.
+
+**Files changed:**
+- `src/types/api.ts` — Added `UserProfile` interface `{ id, email, name, avatarUrl, createdAt }`
+- `src/services/api.ts` — Added `getProfile()` (GET /users/me) and `updateProfile({ name?, email? })` (PUT /users/me); imported UserProfile type
+- `src/pages/ProfilePage.tsx` — Created new page
+- `src/App.tsx` — Added import and route `/profile` (ProtectedRoute)
+- `src/components/Layout.tsx` — Added "Profile" nav link next to "Dashboard" for authenticated users
+
+**ProfilePage features:**
+- Avatar initials circle (no upload)
+- Member since date display
+- Edit form: name + email fields; email change warning
+- useQuery for GET with loading spinner and error state
+- useMutation for PUT with success/error banners + cache invalidation
+- Matches existing Tailwind design (bg-white rounded-lg shadow-sm, primary-600 buttons)
+
+**TypeScript:** 0 errors (tsc --noEmit exits 0).

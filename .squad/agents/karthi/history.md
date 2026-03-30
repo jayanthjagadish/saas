@@ -450,3 +450,20 @@ Baskar's E2E tests revealed 4 critical auth bugs:
 - Email match enforced at acceptance (403 EMAIL_MISMATCH if mismatch)
 - Member limit (Plan.max_members) checked at both invite creation AND acceptance
 - getUserTeam helper shared across invite and remove routes
+
+## US-005: Profile Management Backend (2026-03-30)
+
+**Task:** Implemented GET /users/me, PUT /users/me, POST /users/me/avatar
+
+**Changes:**
+- packages/api/src/models/User.ts: Added vatarUrl field (DataTypes.STRING, nullable, maps to vatar_url column). 
+ame field already existed.
+- packages/api/src/routes/users.ts: Full implementation replacing the stub:
+  - GET /users/me — returns id, email, name, avatarUrl, verified, createdAt
+  - PUT /users/me — validates with zod (name ≤100 chars, valid email); on email change sets verified=false, generates token, calls sendVerificationEmail
+  - POST /users/me/avatar — stub returning AVATAR_UPLOAD_NOT_CONFIGURED (501)
+- packages/api/src/app.ts: Already registered at /users — no change needed
+- TypeScript check: 0 errors
+
+**Patterns used:** authMiddleware from middleware/auth.js, { success, data } response shape, zod validation, sendVerificationEmail for email change flow.
+
