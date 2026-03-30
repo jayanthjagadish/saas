@@ -40,10 +40,22 @@ export interface Subscription {
   userId: string;
   stripeCustomerId: string;
   stripeSubscriptionId: string;
-  status: 'active' | 'canceled' | 'past_due' | 'pending';
+  status: 'active' | 'canceled' | 'past_due' | 'pending' | 'cancellation_pending';
   planId: string;
+  /** Enriched plan object returned by the API after the backend fix */
+  plan?: {
+    name: string;
+    tier: string;
+    price_monthly: number;
+  };
+  /** Flat plan name string that some API responses include */
+  plan_name?: string;
+  /** Human-readable price string, e.g. "$20/mo" */
+  price_display?: string;
   currentPeriodStart: string;
   currentPeriodEnd: string;
+  /** Unix timestamp (seconds) — alternative casing from backend */
+  current_period_end?: number;
   cancelAtPeriodEnd: boolean;
   createdAt: string;
   updatedAt: string;

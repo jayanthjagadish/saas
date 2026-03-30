@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 
 const PlanComparison: React.FC = () => {
   const [annual, setAnnual] = useState(false);
+  const navigate = useNavigate();
+
   const { data: plansResp, isLoading, error } = useQuery({ queryKey: ['plans'], queryFn: () => api.getPlans() });
   const plans = plansResp?.data ?? [
     { id: 'free', name: 'Free', priceMonthly: 0, priceYearly: 0, features: { teamMembers: 3 } },
@@ -19,6 +22,29 @@ const PlanComparison: React.FC = () => {
     const monthly = plan.priceMonthly ?? 0;
     const yearly = plan.priceYearly ?? Math.round(monthly * 12 * 0.8);
     return annual ? yearly : monthly;
+  };
+
+  /** Navigate to checkout for a paid plan, or to signup for unauthenticated free-plan clicks. */
+  const handleUpgrade = (plan: any) => {
+    if (plan.id === 'free') {
+      // Free plan — unauthenticated users can sign up; authenticated users are already on a plan
+      if (!isAuth) navigate('/signup');
+      return;
+    }
+    navigate(`/checkout?plan_id=${plan.id}`);
+  };
+
+  /** Label for the primary CTA on each plan card. */
+  const primaryLabel = (plan: any): string => {
+    if (currentPlanId === plan.id) return 'Manage';
+    if (plan.id === 'free') return isAuth ? 'Current Plan' : 'Get started';
+    return 'Upgrade';
+  };
+
+  /** Whether the primary CTA should be disabled (no action available). */
+  const isPrimaryDisabled = (plan: any): boolean => {
+    // Authenticated users on the free plan have nothing to do on the free card
+    return isAuth && plan.id === 'free' && currentPlanId === 'free';
   };
 
   return (
@@ -60,8 +86,27 @@ const PlanComparison: React.FC = () => {
             </ul>
 
             <div className="mt-6 flex space-x-3">
-              <button className="flex-1 px-4 py-2 bg-white border border-sky-600 text-sky-600 rounded-md">{currentPlanId === plan.id ? 'Manage' : (plan.id === 'free' ? 'Get started' : 'Upgrade')}</button>
-              <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">Downgrade</button>
+              <button
+                onClick={() => {
+                  if (currentPlanId === plan.id) {
+                    navigate('/subscription');
+                  } else {
+                    handleUpgrade(plan);
+                  }
+                }}
+                disabled={isPrimaryDisabled(plan)}
+                className="flex-1 px-4 py-2 bg-white border border-sky-600 text-sky-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-sky-50"
+              >
+                {primaryLabel(plan)}
+              </button>
+              {plan.id !== 'free' && (
+                <button
+                  onClick={() => navigate(`/checkout?plan_id=${plan.id}`)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                >
+                  Downgrade
+                </button>
+              )}
             </div>
 
             {isLoading && <p className="mt-3 text-sm text-gray-500">Loading pricing…</p>}

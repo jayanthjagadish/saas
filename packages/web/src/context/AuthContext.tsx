@@ -86,20 +86,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [scheduleRefresh]);
 
   const login = useCallback(async (email: string, password: string, rememberMe: boolean) => {
-    const res = await apiService.login({ email, password, remember_me: rememberMe });
-    if (res.success && res.data?.accessToken) {
-      const at = res.data.accessToken;
-      apiService.setAccessToken(at);
-      setToken(at);
-      try {
-        const userRes = await apiService.getCurrentUser();
-        if (userRes.success) setUser(userRes.data ?? null);
-      } catch (e) {
-        setUser(null);
+    try {
+      const res = await apiService.login({ email, password, remember_me: rememberMe });
+      if (res.success && res.data?.accessToken) {
+        const at = res.data.accessToken;
+        apiService.setAccessToken(at);
+        setToken(at);
+        try {
+          const userRes = await apiService.getCurrentUser();
+          if (userRes.success) setUser(userRes.data ?? null);
+        } catch (e) {
+          setUser(null);
+        }
+        scheduleRefresh(at);
+      } else {
+        throw new Error(res.error?.message || 'Login failed');
       }
-      scheduleRefresh(at);
-    } else {
-      throw new Error(res.error?.message || 'Login failed');
+    } catch (error) {
+      // Re-throw the error to preserve the Axios error structure for LoginPage
+      throw error;
     }
   }, [scheduleRefresh]);
 

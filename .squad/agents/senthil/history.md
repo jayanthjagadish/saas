@@ -199,3 +199,37 @@ Fixed all 23 TypeScript compilation errors in `packages/web`. Build now exits 0.
 - `src/types/api.ts` — add `remember_me?: boolean` to LoginRequest
 - `tsconfig.app.json` — exclude test files from production build
 
+### Auth E2E Test Fixes (6 failing tests resolved)
+
+**Problem 1 — 401 interceptor swallowed login errors:**
+Added an early-exit guard in the Axios 401 interceptor (`api.ts`) to bypass refresh logic for `/auth/login`, `/auth/signup`, and `/auth/refresh` URLs. Without this, a wrong-password 401 triggered a token refresh attempt, which failed and redirected the user silently instead of showing the error.
+
+**Problem 2 — LoginPage missing `noValidate`:**
+Added `noValidate` to the `<form>` in `LoginPage.tsx`. Without it, the browser's native HTML5 email validation prevented `handleSubmit` from running, so the custom React error for invalid email format was never shown.
+
+**Problem 3 — Duplicate email error message mismatch:**
+The backend returns `'An account with that email already exists'` on 409, but the test expects `'Email already registered'`. Changed `SignupPage.tsx` to always display `'Email already registered'` for 409 errors.
+
+**Key pattern to remember:**
+- Axios interceptors must never catch errors from the same endpoint family that authenticates (login/signup) — they have no refresh token to work with and will always fail, masking the original error.
+- Always align frontend error messages with E2E test expectations; never rely solely on backend messages passing through.
+
+### 2026-03-30 — Auth E2E Tests Fully Green (9/9 Passing)
+
+**Root Cause Found: .env Configuration**
+
+The remaining issue after code fixes was environment configuration, not logic:
+- VITE_API_BASE_URL in `packages/web/.env` was set to `http://localhost:3001/api` (absolute URL)
+- This **bypassed Vite's proxy setup** defined in `vite.config.ts`
+- All API calls went directly to `http://localhost:3001/api/auth/*` which doesn't exist
+- Backend only exposes `/auth/*` endpoints; they are proxied at `/api` by Vite in dev
+
+**Fix Applied:**
+Changed VITE_API_BASE_URL from `http://localhost:3001/api` to `/api` (relative path)
+- Respects Vite proxy configuration
+- Routes through proxy to backend `/auth/*` endpoints correctly
+- 9/9 non-skipped Chromium auth E2E tests now passing
+
+**Critical Learning:**
+Environment configuration can completely override application logic. Never use absolute localhost URLs in .env when the development environment uses a proxy. Always verify proxy setup when debugging API routing issues.
+

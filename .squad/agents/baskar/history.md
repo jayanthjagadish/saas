@@ -100,6 +100,39 @@ Wrote comprehensive automation test scripts for the Fenster SaaS app covering E2
 
 ---
 
+## 2026-03-30 - Auth E2E Test Run (Post Senthil Fixes)
+
+### Task
+Ran `tests/e2e/auth.spec.ts` after Senthil applied 3 fixes:
+1. 401 interceptor bypass for `/auth/login` and `/auth/signup` in `packages/web/src/services/api.ts`
+2. `noValidate` added to `LoginPage.tsx` form
+3. Hardened signup 409 error message in `SignupPage.tsx`
+
+### Results
+- **4 passed, 23 failed, 9 skipped** (36 total across 3 browsers)
+
+### Learnings
+
+#### Browser Binary Issue (16/23 failures)
+- Firefox and WebKit executables are NOT installed on this machine
+- All firefox/webkit tests fail with: `browserType.launch: Executable doesn't exist`
+- Fix: `npx playwright install` to download missing browsers
+- Consider running Chromium-only (`--project=chromium`) locally to avoid noise
+
+#### Remaining Chromium Failures (3/23 failures)
+- **Login error messages not visible**: Both "wrong password" and "non-existent email" tests fail because `locator('text=Invalid email or password')` is never visible. Senthil's 401 bypass + `noValidate` did not fully fix the login error display.
+- **Signup duplicate email error not visible**: The 409 hardening fix still doesn't render a visible error message for the duplicate email test case.
+
+#### What Passed (Chromium)
+- Validation tests for weak password, missing company name, and invalid email format now pass — Senthil's `noValidate` fix and signup hardening helped these cases.
+
+#### Action Needed
+- Senthil needs to investigate why login error state is not being rendered in `LoginPage.tsx` after a failed login API call
+- Check exact error text being rendered vs `Invalid email or password` selector
+- The successful login redirect test status is ambiguous — appeared in failure detail but not in final failure list
+
+---
+
 ## 2025-01-XX: E2E Test Selector Fixes
 
 ### Task

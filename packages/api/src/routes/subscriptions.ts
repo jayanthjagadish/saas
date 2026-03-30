@@ -8,7 +8,51 @@ import Subscription from '../models/Subscription.js';
 
 const router = Router();
 
-// Get current user's subscriptions
+// Priority order for picking the "best" subscription to surface
+const STATUS_PRIORITY: Record<string, number> = {
+  active: 0,
+  cancellation_pending: 1,
+  past_due: 2,
+  unpaid: 3,
+  pending: 4,
+  canceled: 5,
+};
+
+/** Shape that formatSubscriptionResponse produces — satisfies both Dashboard and SubscriptionPage. */
+function formatSubscriptionResponse(sub: Subscription & { plan?: InstanceType<typeof Plan> | null }) {
+  const plan = sub.plan ?? null;
+  const priceMonthly = Number(plan?.price_monthly ?? sub.pricePerMonth ?? 0);
+  const priceDisplay = `$${priceMonthly.toFixed(2)}/month`;
+  const periodEndDate = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd) : null;
+  // SubscriptionPage uses current_period_end * 1000 → keep as Unix seconds
+  const currentPeriodEndUnix = periodEndDate ? Math.floor(periodEndDate.getTime() / 1000) : null;
+
+  return {
+    id: sub.id,
+    status: sub.status,
+    planId: sub.planId,
+    // SubscriptionPage fields
+    plan_name: plan?.name ?? null,
+    price_display: priceDisplay,
+    current_period_end: currentPeriodEndUnix,
+    // Dashboard fields (ISO strings)
+    currentPeriodStart: sub.currentPeriodStart ? new Date(sub.currentPeriodStart).toISOString() : null,
+    currentPeriodEnd: periodEndDate ? periodEndDate.toISOString() : null,
+    pricePerMonth: Number(sub.pricePerMonth),
+    cancelAtPeriodEnd: sub.cancelAtPeriodEnd ?? false,
+    // Full plan object for any page that needs it
+    plan: plan
+      ? {
+          id: plan.id,
+          name: plan.name,
+          tier: plan.tier,
+          price_monthly: plan.price_monthly,
+        }
+      : null,
+  };
+}
+
+// Get current user's active (or most recent) subscription — returns a single object
 router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const userInfo = req.user;
@@ -16,10 +60,20 @@ router.get('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const subscriptions = await Subscription.findAll({
       where: { userId: userInfo.id },
-      include: [{ model: Plan, as: 'plan' }]
+      include: [{ model: Plan, as: 'plan' }],
+      order: [['createdAt', 'DESC']],
     });
 
-    res.json({ subscriptions });
+    if (!subscriptions.length) {
+      return res.json({ success: true, data: null });
+    }
+
+    // Pick the highest-priority status; ties broken by most-recent (already ordered DESC)
+    const sub = [...subscriptions].sort(
+      (a, b) => (STATUS_PRIORITY[a.status] ?? 99) - (STATUS_PRIORITY[b.status] ?? 99)
+    )[0] as Subscription & { plan?: InstanceType<typeof Plan> | null };
+
+    res.json({ success: true, data: formatSubscriptionResponse(sub) });
   } catch (err) {
     console.error('Error fetching subscriptions:', err);
     res.status(500).json({ error: 'FETCH_FAILED' });

@@ -1,0 +1,4 @@
+To: smoketest@example.com
+Subject: Password Reset Request
+
+Reset your password at http://localhost:3000/reset-password?token=0eb67c02b30ad1472837e6c8cb3658b2c086e68a266001b73812c05472066bcb. Link expires in 1 hour.

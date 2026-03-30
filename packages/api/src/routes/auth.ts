@@ -22,19 +22,19 @@ function validatePassword(password: string): boolean {
 router.post('/signup', async (req: Request, res: Response) => {
   const { email, password, company_name } = req.body;
   if (!email || !password) {
-    res.status(400).json({ error: 'INVALID_INPUT', message: 'Email and password required' });
+    res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Email and password required' });
     return;
   }
 
   if (!validatePassword(password)) {
-    res.status(400).json({ error: 'WEAK_PASSWORD', message: 'Password does not meet strength requirements' });
+    res.status(400).json({ success: false, error: 'WEAK_PASSWORD', message: 'Password does not meet strength requirements' });
     return;
   }
 
   try {
     const existing = await User.findOne({ where: { email } });
     if (existing) {
-      res.status(409).json({ error: 'EMAIL_EXISTS', message: 'An account with that email already exists' });
+      res.status(409).json({ success: false, error: 'EMAIL_EXISTS', message: 'An account with that email already exists' });
       return;
     }
 
@@ -76,7 +76,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     res.status(201).json({ user_id: user.id, email: user.email, message: 'Check your email to verify' });
   } catch (err) {
     console.error('Signup error', err);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to create user' });
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Failed to create user' });
   }
 });
 
@@ -119,7 +119,7 @@ router.post('/login', async (req: Request, res: Response) => {
   const ip = (req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress) as string;
 
   if (!email || !password) {
-    res.status(400).json({ error: 'INVALID_INPUT', message: 'Email and password required' });
+    res.status(400).json({ success: false, error: 'INVALID_INPUT', message: 'Email and password required' });
     return;
   }
 
@@ -140,12 +140,12 @@ router.post('/login', async (req: Request, res: Response) => {
       // log failed attempt
       incrementFailedAttempt(ip);
       console.warn(`Failed login attempt for unknown user ${email} from ${ip} at ${new Date().toISOString()}`);
-      res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
+      res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' });
       return;
     }
 
     if (!user.verified && !user.emailVerifiedAt) {
-      res.status(403).json({ error: 'UNVERIFIED', message: 'Please verify your email before logging in' });
+      res.status(403).json({ success: false, error: 'UNVERIFIED', message: 'Please verify your email before logging in' });
       return;
     }
 
@@ -153,7 +153,7 @@ router.post('/login', async (req: Request, res: Response) => {
     if (!valid) {
       incrementFailedAttempt(ip);
       console.warn(`Failed login attempt for ${email} from ${ip} at ${new Date().toISOString()}`);
-      res.status(401).json({ error: 'INVALID_CREDENTIALS', message: 'Invalid credentials' });
+      res.status(401).json({ success: false, error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' });
       return;
     }
 
@@ -183,10 +183,10 @@ router.post('/login', async (req: Request, res: Response) => {
       maxAge: refreshDays * 24 * 60 * 60 * 1000,
     });
 
-    res.json({ access_token: accessToken, user_id: user.id, email: user.email });
+    res.json({ success: true, data: { accessToken: accessToken, userId: user.id, email: user.email } });
   } catch (err) {
     console.error('Login error', err);
-    res.status(500).json({ error: 'INTERNAL_ERROR', message: 'Failed to login' });
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: 'Failed to login' });
   }
 });
 

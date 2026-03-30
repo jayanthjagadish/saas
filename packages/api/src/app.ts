@@ -31,7 +31,7 @@ app.use('/users', userRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/webhooks', webhookRoutes);
-app.use('/api/plans', plansRoutes);
+app.use('/plans', plansRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

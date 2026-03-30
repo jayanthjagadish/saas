@@ -14,6 +14,8 @@ export default function SubscriptionPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelInfo, setCancelInfo] = useState<CancelResponse | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [reactivateSuccess, setReactivateSuccess] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -22,8 +24,9 @@ export default function SubscriptionPage() {
         setSub(s.data || null);
         const p = await api.getPayments();
         setPayments(p.data || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load subscription');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to load subscription';
+        setError(message);
       } finally {
         setLoading(false);
       }
@@ -32,6 +35,7 @@ export default function SubscriptionPage() {
 
   const handleCancel = async () => {
     setCancelling(true);
+    setActionError(null);
     try {
       const response = await api.cancelSubscription();
       setCancelInfo(response.data ?? null);
@@ -39,33 +43,84 @@ export default function SubscriptionPage() {
       // Reload subscription data
       const s = await api.getSubscription();
       setSub(s.data || null);
-    } catch (err: any) {
-      alert(err.message || 'Failed to cancel subscription');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to cancel subscription';
+      setActionError(message);
+      setShowCancelModal(false);
     } finally {
       setCancelling(false);
     }
   };
 
   const handleReactivate = async () => {
+    setActionError(null);
+    setReactivateSuccess(false);
     try {
       await api.reactivateSubscription();
-      alert('Subscription reactivated successfully!');
+      setReactivateSuccess(true);
       // Reload subscription data
       const s = await api.getSubscription();
       setSub(s.data || null);
       setCancelInfo(null);
-    } catch (err: any) {
-      alert(err.message || 'Failed to reactivate subscription');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to reactivate subscription';
+      setActionError(message);
     }
   };
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
+  // Safely resolve period-end date: backend may return Unix timestamp (current_period_end)
+  // or an ISO date string (currentPeriodEnd). Handle both.
+  const endDate = sub?.current_period_end
+    ? new Date(sub.current_period_end * 1000)
+    : sub?.currentPeriodEnd
+    ? new Date(sub.currentPeriodEnd)
+    : null;
+
+  const planName = sub?.plan_name || sub?.plan?.name || 'Free';
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Subscription</h1>
-      
+
+      {/* Success Banner */}
+      {reactivateSuccess && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-400 rounded flex items-start gap-2">
+          <svg className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-green-900">Subscription reactivated successfully!</p>
+            <button
+              onClick={() => setReactivateSuccess(false)}
+              className="mt-1 text-xs text-green-700 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Banner */}
+      {actionError && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-400 rounded flex items-start gap-2">
+          <svg className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-900">{actionError}</p>
+            <button
+              onClick={() => setActionError(null)}
+              className="mt-1 text-xs text-red-700 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {cancelInfo && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-400 rounded">
           <div className="flex items-start">
@@ -104,8 +159,10 @@ export default function SubscriptionPage() {
         <div className="p-4 bg-white border rounded">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-lg font-medium">{sub.plan_name}</div>
-              <div className="text-sm text-gray-600">{sub.price_display} • Renews {new Date(sub.current_period_end * 1000).toLocaleDateString()}</div>
+              <div className="text-lg font-medium">{planName}</div>
+              <div className="text-sm text-gray-600">
+                {sub.price_display} • Renews {endDate?.toLocaleDateString() ?? 'N/A'}
+              </div>
             </div>
             <div className="space-x-2">
               <a href="/pricing?action=upgrade" className="px-3 py-2 bg-sky-600 text-white rounded">Upgrade/Downgrade</a>
@@ -167,7 +224,7 @@ export default function SubscriptionPage() {
                   <p className="mb-2">
                     Cancelling will keep your access until{' '}
                     <span className="font-semibold">
-                      {sub?.current_period_end ? new Date(sub.current_period_end * 1000).toLocaleDateString() : 'the end of your billing period'}
+                      {endDate?.toLocaleDateString() ?? 'the end of your billing period'}
                     </span>
                     . After that, you'll be downgraded to Free.
                   </p>

@@ -1,7 +1,7 @@
 import { Sequelize } from 'sequelize';
 import { config } from '../config/index.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import fs from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,7 +44,7 @@ async function runMigrations() {
     const migrationsDir = path.join(__dirname, '..', 'migrations');
     const files = await fs.readdir(migrationsDir);
     const migrationFiles = files
-      .filter(f => f.endsWith('.ts') || f.endsWith('.js'))
+      .filter(f => f.endsWith('.js') && !f.endsWith('.d.ts'))
       .sort();
 
     console.log(`Found ${migrationFiles.length} migration files`);
@@ -64,7 +64,7 @@ async function runMigrations() {
           
           // Dynamically import the migration
           const migrationModule = await import(
-            path.join(migrationsDir, file)
+            pathToFileURL(path.join(migrationsDir, file)).href
           );
           const migration = migrationModule.default || migrationModule;
 

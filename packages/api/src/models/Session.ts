@@ -45,11 +45,13 @@ Session.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+      field: 'updated_at',
     },
   },
   {
@@ -57,6 +59,7 @@ Session.init(
     modelName: 'Session',
     tableName: 'sessions',
     timestamps: true,
+    underscored: true,
   }
 );
 

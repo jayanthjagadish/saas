@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { config } from '../config/index.js';
-import { Subscription } from '../models/Subscription.js';
+import { Subscription, SubscriptionStatus } from '../models/Subscription.js';
 import Payment from '../models/Payment.js';
 import User from '../models/User.js';
 import Plan from '../models/Plan.js';
@@ -34,6 +34,9 @@ export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
         break;
       case 'payment_intent.payment_failed':
         await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent, event.id);
+        break;
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, event.id);
         break;
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription, event.id);
@@ -143,6 +146,42 @@ async function handlePaymentIntentFailed(intent: Stripe.PaymentIntent, eventId?:
   } as any);
 
   console.log('Recorded failed payment', payment.id);
+}
+
+/** Maps Stripe subscription statuses to local SubscriptionStatus values. Unmapped statuses are left unchanged. */
+const STRIPE_STATUS_MAP: Partial<Record<string, SubscriptionStatus>> = {
+  active: 'active',
+  past_due: 'past_due',
+  canceled: 'canceled',
+  unpaid: 'unpaid',
+};
+
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription, eventId?: string): Promise<void> {
+  console.log(`Handling customer.subscription.updated for ${subscription.id} (event ${eventId})`);
+
+  const local = await Subscription.findOne({ where: { stripeSubscriptionId: subscription.id } });
+  if (!local) {
+    console.log(`No local subscription found for Stripe subscription ${subscription.id} — skipping update`);
+    return;
+  }
+
+  const mappedStatus = STRIPE_STATUS_MAP[subscription.status];
+  if (mappedStatus) {
+    local.status = mappedStatus;
+  }
+
+  local.currentPeriodEnd = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000)
+    : local.currentPeriodEnd;
+
+  local.cancelAtPeriodEnd = subscription.cancel_at_period_end;
+
+  await local.save();
+  console.log(
+    `Updated subscription ${local.id}: status=${local.status}, ` +
+    `currentPeriodEnd=${local.currentPeriodEnd?.toISOString()}, ` +
+    `cancelAtPeriodEnd=${local.cancelAtPeriodEnd}`
+  );
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription, eventId?: string): Promise<void> {
