@@ -111,6 +111,18 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 
 
 
+## Infra-First Triage (MANDATORY before any fix)
+
+**When UI or E2E issues arise, check the environment before writing code:**
+
+1. Is the backend returning the right response? Open DevTools → Network → check the API call
+2. Is the component mounted? Check React DevTools for rendering issues
+3. Is the auth token present? Check `apiService.getAccessToken()` in the browser console
+
+**If auth/API calls fail → stop and notify Karthi before touching frontend code.**
+
+Guessing at frontend fixes for backend problems wastes everyone's time.
+
 ## Plan-First Protocol
 
 Before writing any code, every fix or feature implementation MUST begin with a written plan:

@@ -144,6 +144,33 @@ Testing runs in two parallel-friendly phases to eliminate the serial bottleneck 
 
 
 
+## Infra-First Triage (MANDATORY before any E2E investigation)
+
+**When E2E tests fail, run this BEFORE touching any code:**
+
+```
+Step 1 — Pre-flight check (read .squad/skills/e2e-test-infra/SKILL.md)
+  ✅ Ports clean?        Get-NetTCPConnection -LocalPort 3000,3001 -State Listen
+  ✅ Test DBs exist?     mysql -e "SHOW DATABASES LIKE 'fenster_test%';"
+  ✅ Login works?        curl -X POST http://localhost:3001/auth/login (expect 200 + token)
+
+Step 2 — Classify failures BEFORE any fix:
+  - All tests timeout on login form fill → server not running / port conflict
+  - Auth 500 errors → missing test DB (run setup-worker-dbs.cjs)
+  - Element not found → UI component missing (code issue — now write code)
+  - waitForURL timeout → auth redirect broken (code issue — now write code)
+```
+
+**Root Cause Classification (required in every report):**
+| Category | Signal | Who owns fix |
+|----------|--------|-------------|
+| Infrastructure | DB missing, port conflict, server down | Infra / setup scripts |
+| Configuration | Wrong env vars, wrong DB name | Karthi |
+| Code | Logic bug, missing route, wrong selector | Karthi / Senthil |
+| Test | Wrong selector, wrong assertion | Baskar |
+
+State which category before writing a single line of code. If infrastructure → fix infra. If code → then code.
+
 ## Plan-First Protocol
 
 Before writing any code, every fix or feature implementation MUST begin with a written plan:

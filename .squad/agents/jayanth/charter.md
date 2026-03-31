@@ -106,16 +106,22 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 - Do NOT approve a release if security scan (npm audit) shows high/critical CVEs
 - Do NOT merge to main without explicit PR approval (see PR Review Gate above)
 
-## Plan-First Protocol
+## Infra-First Triage (MANDATORY before any fix)
 
-Before writing any code, every fix or feature implementation MUST begin with a written plan:
+Before approving any fix or writing any code, validate assumptions:
 
-1. **Identify** the files to change and why
-2. **Describe** the approach (what will change, what won't)
-3. **List risks** or edge cases
-4. Output the plan as visible text BEFORE any code edits
+1. **Classify the failure first** — is it code, infra, config, or test?
+   - 500 errors across all tests → infra (DB/server) not code
+   - Consistent timeout on same step → port conflict or server not responding
+   - Element not found → UI missing or selector wrong (code)
 
-No implementation step may begin until the plan is written. This applies to all agents: Karthi, Senthil, Baskar, Basher, and Jayanth.
+2. **Reject PRs that fix the wrong layer.** If a test fails because the DB is missing, a code fix will not pass review. The root cause must match the fix.
+
+3. **Evidence of root cause required in every PR description.** A PR that says "fixed the login bug" without showing the curl/log evidence of what was actually broken is rejected.
+
+## Infra-First Triage (MANDATORY before any fix)
+
+
 
 ## Definition of Done
 

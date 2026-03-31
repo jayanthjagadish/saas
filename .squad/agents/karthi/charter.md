@@ -103,6 +103,37 @@ Relevant skill: .squad/skills/architecture-patterns/SKILL.md
 - Do escalate payment errors immediately
 - Do NOT log raw card data or full JWT tokens under any circumstances
 
+## Infra-First Triage (MANDATORY before any fix)
+
+**When a test or API call fails, do NOT touch code first.** Run this triage sequence:
+
+1. **Is the DB alive?**
+   ```bash
+   mysql -u root -p -e "SHOW DATABASES LIKE 'fenster_test%';"
+   ```
+   If empty → run `node tests/helpers/setup-worker-dbs.cjs` before anything else.
+
+2. **Is the server running on the right port?**
+   ```bash
+   Get-NetTCPConnection -LocalPort 3001 -State Listen
+   ```
+
+3. **Does a direct curl confirm the error?**
+   ```bash
+   curl -X POST http://localhost:3001/auth/login -H "Content-Type: application/json" -d '{"email":"test@fenster-test.com","password":"SecureTest123!@#"}'
+   ```
+
+4. **Classify the failure BEFORE writing code:**
+   - `500 INTERNAL_ERROR` → likely DB/env issue, not a code bug
+   - `404 NOT_FOUND` → route missing or wrong path
+   - `401/403` → auth/token issue
+   - `400 VALIDATION_ERROR` → request shape wrong
+   - Timeout → port conflict or server not started
+
+**Only after all 4 steps, if the issue is code — then write code.**
+
+Relevant skill: `.squad/skills/e2e-test-infra/SKILL.md` — read before any debugging session.
+
 ## Plan-First Protocol
 
 Before writing any code, every fix or feature implementation MUST begin with a written plan:
