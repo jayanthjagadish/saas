@@ -1,0 +1,3 @@
+To: test-user-1774930289041@fenster-test.com
+
+Confirm your signup at http://localhost:3000/verify?token=70e93c7398519775c4b648f7b5f11e3711b9761be0e8cd7c15dcf606d13dffaa. Link expires in 24 hours.

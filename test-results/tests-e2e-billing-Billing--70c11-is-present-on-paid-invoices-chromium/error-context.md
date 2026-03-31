@@ -1,0 +1,114 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "Fenster" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: Fenster
+      - generic [ref=e9]:
+        - link "Dashboard" [ref=e10] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Profile" [ref=e11] [cursor=pointer]:
+          - /url: /profile
+        - link "Billing" [ref=e12] [cursor=pointer]:
+          - /url: /billing
+        - link "Analytics" [ref=e13] [cursor=pointer]:
+          - /url: /analytics
+        - generic "test@fenster-test.com" [ref=e14]:
+          - generic [ref=e15]: U
+        - button "Logout" [ref=e16]
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Billing History" [level=1] [ref=e20]
+        - paragraph [ref=e21]: Download past invoices or review your payment history.
+      - generic [ref=e22]:
+        - heading "Upcoming Billing" [level=2] [ref=e24]
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: No upcoming billing events
+          - paragraph [ref=e27]: "Next billing: —"
+      - table [ref=e29]:
+        - rowgroup [ref=e30]:
+          - row "Date Plan Amount Status Download" [ref=e31]:
+            - columnheader "Date" [ref=e32]
+            - columnheader "Plan" [ref=e33]
+            - columnheader "Amount" [ref=e34]
+            - columnheader "Status" [ref=e35]
+            - columnheader "Download" [ref=e36]
+        - rowgroup [ref=e37]:
+          - row "Jan 21, 1970 Pro $29.00 paid PDF" [ref=e38]:
+            - cell "Jan 21, 1970" [ref=e39]
+            - cell "Pro" [ref=e40]
+            - cell "$29.00" [ref=e41]
+            - cell "paid" [ref=e42]:
+              - generic [ref=e43]: paid
+            - cell "PDF" [ref=e44]:
+              - link "PDF" [ref=e45] [cursor=pointer]:
+                - /url: https://invoice.stripe.com/mock/in_mock_001.pdf
+                - img [ref=e46]
+                - text: PDF
+          - row "Jan 20, 1970 Pro $29.00 paid PDF" [ref=e48]:
+            - cell "Jan 20, 1970" [ref=e49]
+            - cell "Pro" [ref=e50]
+            - cell "$29.00" [ref=e51]
+            - cell "paid" [ref=e52]:
+              - generic [ref=e53]: paid
+            - cell "PDF" [ref=e54]:
+              - link "PDF" [ref=e55] [cursor=pointer]:
+                - /url: https://invoice.stripe.com/mock/in_mock_002.pdf
+                - img [ref=e56]
+                - text: PDF
+          - row "Jan 20, 1970 Pro $29.00 paid PDF" [ref=e58]:
+            - cell "Jan 20, 1970" [ref=e59]
+            - cell "Pro" [ref=e60]
+            - cell "$29.00" [ref=e61]
+            - cell "paid" [ref=e62]:
+              - generic [ref=e63]: paid
+            - cell "PDF" [ref=e64]:
+              - link "PDF" [ref=e65] [cursor=pointer]:
+                - /url: https://invoice.stripe.com/mock/in_mock_003.pdf
+                - img [ref=e66]
+                - text: PDF
+  - contentinfo [ref=e68]:
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - heading "Product" [level=3] [ref=e72]
+          - list [ref=e73]:
+            - listitem [ref=e74]:
+              - link "Features" [ref=e75] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e76]:
+              - link "Pricing" [ref=e77] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e78]:
+          - heading "Company" [level=3] [ref=e79]
+          - list [ref=e80]:
+            - listitem [ref=e81]:
+              - link "About" [ref=e82] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e83]:
+              - link "Contact" [ref=e84] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e85]:
+          - heading "Legal" [level=3] [ref=e86]
+          - list [ref=e87]:
+            - listitem [ref=e88]:
+              - link "Privacy" [ref=e89] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e90]:
+              - link "Terms" [ref=e91] [cursor=pointer]:
+                - /url: "#"
+        - generic [ref=e92]:
+          - heading "Social" [level=3] [ref=e93]
+          - list [ref=e94]:
+            - listitem [ref=e95]:
+              - link "Twitter" [ref=e96] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=e97]:
+              - link "GitHub" [ref=e98] [cursor=pointer]:
+                - /url: "#"
+      - paragraph [ref=e100]: © 2026 Fenster. All rights reserved.
+```

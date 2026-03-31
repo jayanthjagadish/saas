@@ -1,0 +1,5 @@
+To: test@fenster-test.com
+Subject: Password Reset Request
+
+URL: http://localhost:3001/auth/reset-password?token=ed8363f7d8631fd1c6c65ab79cf40748e66278ca0f534cebdccebfeb965979fe
+Expires: 2026-03-31T05:18:18.208Z

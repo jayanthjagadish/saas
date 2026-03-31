@@ -168,3 +168,25 @@ INSERT INTO plans (id, name, tier, price_monthly, price_annual, max_members, fea
 - HTTP status changed from 403 to 401
 
 **Files:** packages/api/src/routes/auth.ts, packages/api/src/routes/plans.ts
+
+---
+
+## Fixed 17 Backend-Caused E2E Test Failures (2026-03-31)
+
+**All 42 tests across 4 spec files now pass (auth.spec.ts, auth-flow.spec.ts, password-reset.spec.ts, plans.spec.ts).**
+
+**Backend Fixes:**
+1. **GET /plans response format** — Added `plans` key alongside `data` so API contract tests can access `body.plans`
+2. **Unverified email login status** — Changed back to 403 (was incorrectly set to 401). Frontend LoginPage checks status 403 for verification errors. Message: "Please verify your email before logging in. Resend verification?"
+3. **remember_me field** — Login handler now accepts both `remember` and `remember_me` from request body. Frontend sends `remember_me`, backend was only reading `remember`
+4. **Test hooks per-email tokens** — `setLastVerificationToken` and `setLastResetToken` now store tokens in a per-email Map to avoid race conditions when parallel Playwright workers do signups simultaneously. Endpoints accept `?email=` query param
+5. **Vite proxy for /auth** — Added `/auth` proxy to vite.config.ts with `bypass` for HTML GET requests. Without this, `POST /auth/refresh` through port 3000 returned 404
+
+**Key Learnings:**
+- Vite proxy was missing `/auth` entry — the fix from a previous session was lost
+- Playwright's `text=` locator treats `|` as literal, not regex OR. Use `text=/regex/i` for alternation
+- Parallel Playwright workers share global in-memory test hooks state → per-email keying required
+- Tests that click form submit must wait for API response before reading test-hook tokens
+- Frontend API service uses `/api` base URL (proxied), but E2E test helpers call backend directly at port 3001
+
+**Files Modified:** packages/api/src/routes/auth.ts, plans.ts, test-hooks.ts, services/auth.ts, packages/web/vite.config.ts, tests/e2e/auth.spec.ts, auth-flow.spec.ts, password-reset.spec.ts

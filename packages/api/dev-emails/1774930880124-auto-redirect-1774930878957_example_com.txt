@@ -1,0 +1,3 @@
+To: auto-redirect-1774930878957@example.com
+
+Confirm your signup at http://localhost:3000/verify?token=07c878c977a167fcf3791fc867318311c79c6f6b5b308667940fa8b12df81d25. Link expires in 24 hours.

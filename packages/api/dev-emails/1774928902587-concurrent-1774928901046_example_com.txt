@@ -1,0 +1,3 @@
+To: concurrent-1774928901046@example.com
+
+Confirm your signup at http://localhost:3000/verify?token=3709f969c11e28ede4592acb1401ab050c3a14824cb23f0d159ea54a7680464e. Link expires in 24 hours.

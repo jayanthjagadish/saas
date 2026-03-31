@@ -1,0 +1,3 @@
+To: per-email-test@example.com
+
+Confirm your signup at http://localhost:3000/verify?token=cd28c31867d007ba27dfc901e5739aef46f12d216c86b91e10f61f77876e1380. Link expires in 24 hours.
