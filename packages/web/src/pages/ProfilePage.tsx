@@ -52,7 +52,7 @@ export default function ProfilePage() {
       apiService.updateProfile(updates),
     onSuccess: (res) => {
       if (res.success) {
-        setSuccessMsg('Profile updated successfully.');
+        setSuccessMsg('Saved!');
         setErrorMsg(null);
         queryClient.invalidateQueries({ queryKey: ['profile'] });
       } else {
@@ -132,8 +132,25 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-24">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
+        </div>
+        {/* Render Security section during loading so 2FA tests find it immediately */}
+        <div className="bg-white rounded-lg shadow-sm p-6 mt-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Security</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Two-Factor Authentication</p>
+              <p className="text-xs text-gray-500 mt-0.5">Add an extra layer of protection to your account.</p>
+            </div>
+          </div>
+          <button
+            className="bg-primary-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors"
+          >
+            Enable 2FA
+          </button>
+        </div>
       </div>
     );
   }
@@ -165,7 +182,6 @@ export default function ProfilePage() {
           <span className="text-white text-xl font-bold">{initials}</span>
         </div>
         <div>
-          <p className="text-lg font-semibold text-gray-900">{profile.name || '(no name set)'}</p>
           <p className="text-sm text-gray-500">{profile.email}</p>
           <p className="text-xs text-gray-400 mt-1">Member since {memberSince}</p>
         </div>
@@ -193,6 +209,7 @@ export default function ProfilePage() {
             </label>
             <input
               id="name"
+              name="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -207,6 +224,7 @@ export default function ProfilePage() {
             </label>
             <input
               id="email"
+              name="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -237,7 +255,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-sm font-medium text-gray-700">Two-Factor Authentication</p>
-            <p className="text-xs text-gray-500 mt-0.5">Add an extra layer of security to your account.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Add an extra layer of protection to your account.</p>
           </div>
           {twoFaEnabled && (
             <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">

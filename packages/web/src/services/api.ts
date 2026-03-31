@@ -312,15 +312,24 @@ class ApiService {
   // ===== Token Management (in-memory) =====
 
   getAccessToken(): string | null {
+    if (!this.accessToken) {
+      this.accessToken = localStorage.getItem('accessToken');
+    }
     return this.accessToken;
   }
 
   setAccessToken(token: string | null): void {
     this.accessToken = token;
+    if (token) {
+      localStorage.setItem('accessToken', token);
+    } else {
+      localStorage.removeItem('accessToken');
+    }
   }
 
   clearAuth(): void {
     this.accessToken = null;
+    localStorage.removeItem('accessToken');
   }
 
   isAuthenticated(): boolean {

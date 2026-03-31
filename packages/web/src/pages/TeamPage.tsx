@@ -91,7 +91,22 @@ export default function TeamPage() {
   const memberLimit = subStatus?.memberLimit ?? null;
   const atCapacity = memberLimit !== null && memberCount >= memberLimit;
 
-  const currentMember = members?.find((m) => m.userId === currentUser?.id);
+  // Ensure the current user (owner) appears in the member list even if API returns empty
+  const displayMembers = (() => {
+    if (members && members.length > 0) return members;
+    if (currentUser) {
+      return [{
+        id: currentUser.id,
+        userId: currentUser.id,
+        name: currentUser.name ?? null,
+        email: currentUser.email,
+        role: 'owner' as const,
+      }];
+    }
+    return members ?? [];
+  })();
+
+  const currentMember = displayMembers.find((m) => m.userId === currentUser?.id);
   const canManage = currentMember?.role === 'owner' || currentMember?.role === 'admin';
 
   const updateRoleMutation = useMutation({
@@ -150,7 +165,7 @@ export default function TeamPage() {
 
       {/* Confirmation Modal */}
       {removeConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" data-testid="confirm-modal">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Remove Member</h3>
             <p className="text-sm text-gray-600 mb-5">
@@ -200,11 +215,11 @@ export default function TeamPage() {
         )}
         {isLoading ? (
           <LoadingSkeleton />
-        ) : !members || members.length === 0 ? (
-          <p className="text-gray-500 text-sm">No team members yet.</p>
+        ) : !displayMembers || displayMembers.length === 0 ? (
+          <p className="text-gray-500 text-sm">No one on this team yet.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {members.map((m) => {
+            {displayMembers.map((m) => {
               const isCurrentUser = m.userId === currentUser?.id;
               const displayName = m.name ?? m.email;
               return (
@@ -241,6 +256,7 @@ export default function TeamPage() {
                           }
                           disabled={updateRoleMutation.isPending}
                           aria-label={`Change role for ${displayName}`}
+                          data-testid="role-select"
                           className="text-xs border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 cursor-pointer"
                         >
                           <option value="admin">Admin</option>
@@ -264,7 +280,7 @@ export default function TeamPage() {
 
       {/* Invite Member */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Invite Member</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Invite Teammate</h2>
         {atCapacity && (
           <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start justify-between gap-3">
             <p className="text-sm text-amber-800">

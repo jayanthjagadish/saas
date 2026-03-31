@@ -197,12 +197,12 @@ export default function DashboardPage() {
             >
               Upgrade Plan
             </button>
-            <Link
-              to="/team"
+            <button
+              onClick={() => navigate('/team')}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
             >
-              Invite Team Member →
-            </Link>
+              Invite Member
+            </button>
             <Link
               to="/analytics"
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"

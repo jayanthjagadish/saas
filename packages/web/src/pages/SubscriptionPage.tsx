@@ -62,22 +62,29 @@ export default function SubscriptionPage() {
     (async () => {
       try {
         await fetchSubscription();
+      } catch {
+        // No subscription — continue showing page
+      }
+      try {
         const p = await api.getPayments();
         setPayments(p.data || []);
-        const pl = await api.getPlans();
-        setPlans(pl.data?.plans || []);
-        try {
-          const ss = await api.getSubscriptionStatus();
-          if (ss.data) setSubStatus(ss.data);
-        } catch {
-          // subscription status is non-critical; ignore errors
-        }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to load subscription';
-        setError(message);
-      } finally {
-        setLoading(false);
+      } catch {
+        // No payments — ok
       }
+      try {
+        const pl = await api.getPlans();
+        const plData = pl.data;
+        setPlans(Array.isArray(plData) ? plData : (plData?.plans || []));
+      } catch {
+        // Plans fetch failed — ok
+      }
+      try {
+        const ss = await api.getSubscriptionStatus();
+        if (ss.data) setSubStatus(ss.data);
+      } catch {
+        // subscription status is non-critical; ignore errors
+      }
+      setLoading(false);
     })();
   }, []);
 
@@ -324,11 +331,18 @@ export default function SubscriptionPage() {
           </div>
         </div>
       ) : (
-        <div className="p-4 bg-white border rounded">No active subscription.</div>
+        <div className="p-4 bg-white border rounded">
+          <p>No active subscription.</p>
+          {subStatus && (
+            <p className="mt-2 text-sm text-gray-500">
+              {subStatus.memberCount} of {subStatus.memberLimit} seats used
+            </p>
+          )}
+        </div>
       )}
 
       {/* Plan Comparison */}
-      {sub && plans.length > 0 && (
+      {plans.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Change Plan</h2>
@@ -368,8 +382,11 @@ export default function SubscriptionPage() {
                     {price === 0 ? 'Free' : `$${price}`}
                     {price > 0 && <span className="text-sm font-normal text-gray-500">/{billingInterval === 'annual' ? 'yr' : 'mo'}</span>}
                   </div>
-                  {maxMembers !== null && (
+                  {maxMembers !== null && isCurrent && (
                     <div className="text-xs text-gray-500 mt-1">Up to {maxMembers} members</div>
+                  )}
+                  {maxMembers !== null && !isCurrent && (
+                    <div className="text-xs text-gray-500 mt-1">Max {maxMembers} seats</div>
                   )}
                   <div className="mt-4">
                     {isCurrent ? (

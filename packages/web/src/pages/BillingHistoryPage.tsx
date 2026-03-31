@@ -99,7 +99,8 @@ function UpcomingBillingSection() {
         <CalendarSkeleton />
       ) : !data || data.events.length === 0 ? (
         <div className="px-6 py-8 text-center text-gray-500 text-sm">
-          No upcoming billing events
+          <p>No upcoming billing events</p>
+          <p className="mt-2">Next billing: —</p>
         </div>
       ) : (
         <div className="px-6 py-4 space-y-3">
@@ -114,6 +115,7 @@ function UpcomingBillingSection() {
           {data.events.map((event, idx) => (
             <div
               key={idx}
+              data-testid={`billing-event-${idx}`}
               className={`flex items-start gap-3 px-4 py-3 rounded-lg border ${eventColorClass(event.type)}`}
             >
               <span className="text-lg leading-none mt-0.5">{eventIcon(event.type)}</span>

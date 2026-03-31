@@ -38,7 +38,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/auth/login" element={<LegacyLoginPage />} />
+            <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/signup" element={<SignupPageLegacy />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify" element={<VerifyEmailPage />} />

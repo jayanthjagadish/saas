@@ -41,13 +41,18 @@ export default function AnalyticsPage() {
           api.getUsageStats(),
           api.getMemberGrowth(),
         ]);
-        if (statsRes.success && statsRes.data) setStats(statsRes.data);
+        if (statsRes.success && statsRes.data) {
+          setStats(statsRes.data);
+        } else {
+          setStats({ memberCount: 0, memberLimit: 1, planName: 'Free', teamAgeInDays: 0, monthlyActiveMembers: 0 });
+        }
         if (growthRes.success && growthRes.data) {
           setGrowth(growthRes.data.slice(-6));
         }
       } catch {
+        setStats({ memberCount: 0, memberLimit: 1, planName: 'Free', teamAgeInDays: 0, monthlyActiveMembers: 0 });
         setError('Failed to load analytics data.');
-      } finally {
+      }finally {
         setLoading(false);
       }
     }

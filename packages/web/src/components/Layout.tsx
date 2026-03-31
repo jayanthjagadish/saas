@@ -67,7 +67,9 @@ export default function Layout({ children }: LayoutProps) {
                   >
                     Analytics
                   </Link>
-                  <div className="text-sm text-gray-700 px-3">{auth.user?.email}</div>
+                  <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center" title={auth.user?.email ?? ''}>
+                    <span className="text-white text-xs font-bold">{(auth.user?.name?.[0] || auth.user?.email?.[0] || '?').toUpperCase()}</span>
+                  </div>
                   <button
                     onClick={handleLogout}
                     className="bg-primary-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-primary-700"
