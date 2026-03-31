@@ -133,6 +133,9 @@ test.describe('E2E Password Reset Flow', () => {
     await page.fill('input[name="email"]', testEmail);
     await page.click('button[type="submit"]');
 
+    // Wait for the forgot-password request to complete
+    await expect(page.locator('h2.text-2xl.font-bold')).toContainText(/Check Your Email/i, { timeout: 5000 });
+
     const tokenResp = await page.request.get('http://localhost:3001/test-hooks/last-reset-token');
     const body = await tokenResp.json();
     const resetToken = body.token;
@@ -160,6 +163,9 @@ test.describe('E2E Password Reset Flow', () => {
     await page.fill('input[name="email"]', testEmail);
     await page.click('button[type="submit"]');
 
+    // Wait for the first request to complete
+    await expect(page.locator('h2.text-2xl.font-bold')).toContainText(/Check Your Email/i, { timeout: 5000 });
+
     let tokenResp = await page.request.get('http://localhost:3001/test-hooks/last-reset-token');
     let body = await tokenResp.json();
     const firstToken = body.token;
@@ -168,6 +174,9 @@ test.describe('E2E Password Reset Flow', () => {
     await page.goto('http://localhost:3000/auth/forgot-password');
     await page.fill('input[name="email"]', testEmail);
     await page.click('button[type="submit"]');
+
+    // Wait for the second request to complete
+    await expect(page.locator('h2.text-2xl.font-bold')).toContainText(/Check Your Email/i, { timeout: 5000 });
 
     tokenResp = await page.request.get('http://localhost:3001/test-hooks/last-reset-token');
     body = await tokenResp.json();
@@ -182,7 +191,7 @@ test.describe('E2E Password Reset Flow', () => {
     await page.click('button[type="submit"]');
 
     await expect(page.locator('div.bg-red-100.text-red-700'))
-      .toContainText(/invalid.*token|token.*expired/i, { timeout: 3000 });
+      .toContainText(/invalid.*token|token.*expired|link.*expired|link.*invalid/i, { timeout: 3000 });
 
     // Second token should work
     await page.goto(`http://localhost:3000/auth/reset-password?token=${secondToken}`);

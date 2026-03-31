@@ -11,7 +11,7 @@ router.get('/', async (_req: Request, res: Response) => {
     attributes: ['id', 'name', 'tier', 'price_monthly', 'price_annual', 'max_members', 'features'],
   });
 
-  res.json({ success: true, data: plans });
+  res.json({ success: true, data: plans, plans: plans });
 });
 
 // GET /api/plans/:id

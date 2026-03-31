@@ -20,6 +20,12 @@ export default defineConfig({
       '/auth': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        bypass(req) {
+          // Let browser navigation (HTML) be served by the SPA
+          if (req.method === 'GET' && req.headers.accept?.includes('text/html')) {
+            return '/index.html';
+          }
+        },
       },
       '/test-hooks': {
         target: 'http://localhost:3001',

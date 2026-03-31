@@ -119,7 +119,7 @@ test.describe('Auth Flow - E2E', () => {
       // Should show error for unverified email
       const errorDiv = page.locator('div.bg-red-100.text-red-700');
       await expect(errorDiv).toBeVisible({ timeout: 10000 });
-      await expect(page.locator('text=verify|verification|not verified')).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('text=/verify|verification|not verified/i')).toBeVisible({ timeout: 5000 });
     });
 
     test('should show validation error for invalid email format', async ({ page }) => {

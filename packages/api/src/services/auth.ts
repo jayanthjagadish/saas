@@ -102,7 +102,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   // Store token for test hooks (dev only)
   if (process.env.NODE_ENV !== 'production') {
-    setLastResetToken(resetToken);
+    setLastResetToken(resetToken, email);
   }
 
   await sendPasswordResetEmail(email, resetToken);

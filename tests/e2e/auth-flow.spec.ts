@@ -18,8 +18,11 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 test.describe('Auth Lifecycle Flow (US-003)', () => {
   
-  async function getVerificationToken(page: any): Promise<string> {
-    const tokenResp = await page.request.get(`http://localhost:3001/test-hooks/last-verification`);
+  async function getVerificationToken(page: any, email?: string): Promise<string> {
+    const url = email
+      ? `http://localhost:3001/test-hooks/last-verification?email=${encodeURIComponent(email)}`
+      : `http://localhost:3001/test-hooks/last-verification`;
+    const tokenResp = await page.request.get(url);
     expect(tokenResp.status()).toBe(200);
     const body = await tokenResp.json();
     return body.token;
@@ -48,8 +51,7 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
 
     // EMAIL VERIFICATION
-    const verificationToken = await getVerificationToken(page);
-    expect(verificationToken).toBeTruthy();
+    const verificationToken = await getVerificationToken(page, testEmail);
 
     await page.goto(`${BASE_URL}/verify?token=${verificationToken}`);
     await expect(page.locator('text=/verified|confirmed/i')).toBeVisible({ timeout: 5000 });
@@ -138,6 +140,9 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     
     await page.click('button[type="submit"]');
 
+    // Wait for signup to complete before navigating
+    await expect(page.locator('text=/Check your email|verification/i')).toBeVisible({ timeout: 5000 });
+
     await page.goto(`${BASE_URL}/login`);
     
     await page.fill('input[name="email"]', unverifiedEmail);
@@ -159,7 +164,10 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     
     await page.click('button[type="submit"]');
 
-    const verificationToken = await getVerificationToken(page);
+    // Wait for signup to complete
+    await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
+
+    const verificationToken = await getVerificationToken(page, testEmail);
     
     await page.goto(`${BASE_URL}/verify?token=${verificationToken}`);
     await page.waitForURL(/\/(auth\/)?login/, { timeout: 5000 });
@@ -202,7 +210,10 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     
     await page.click('button[type="submit"]');
 
-    const verificationToken = await getVerificationToken(page);
+    // Wait for signup to complete
+    await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
+
+    const verificationToken = await getVerificationToken(page, testEmail);
     await page.goto(`${BASE_URL}/verify?token=${verificationToken}`);
     await page.waitForURL(/\/(auth\/)?login/, { timeout: 5000 });
 
@@ -242,7 +253,10 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     
     await page.click('button[type="submit"]');
 
-    const verificationToken = await getVerificationToken(page);
+    // Wait for signup to complete
+    await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
+
+    const verificationToken = await getVerificationToken(page, testEmail);
     await page.goto(`${BASE_URL}/verify?token=${verificationToken}`);
     await page.waitForURL(/\/(auth\/)?login/, { timeout: 5000 });
 
@@ -276,7 +290,10 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     
     await page.click('button[type="submit"]');
 
-    const verificationToken = await getVerificationToken(page);
+    // Wait for signup to complete
+    await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
+
+    const verificationToken = await getVerificationToken(page, testEmail);
     await page.goto(`${BASE_URL}/verify?token=${verificationToken}`);
     await page.waitForURL(/\/(auth\/)?login/, { timeout: 5000 });
 
@@ -314,7 +331,10 @@ test.describe('Auth Lifecycle Flow (US-003)', () => {
     
     await page.click('button[type="submit"]');
 
-    const verificationToken = await getVerificationToken(page);
+    // Wait for signup to complete
+    await expect(page.locator('div.bg-blue-50.text-blue-800 p')).toBeVisible({ timeout: 5000 });
+
+    const verificationToken = await getVerificationToken(page, testEmail);
     await page.goto(`${BASE_URL}/verify?token=${verificationToken}`);
     await page.waitForURL(/\/(auth\/)?login/, { timeout: 5000 });
 

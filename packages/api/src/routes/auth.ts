@@ -82,7 +82,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 
     // Store token for test hooks (dev only)
     if (process.env.NODE_ENV !== 'production') {
-      setLastVerificationToken(token);
+      setLastVerificationToken(token, email);
     }
 
     res.status(201).json({ success: true, data: { user_id: user.id, email: user.email, message: 'Check your email to verify' } });
@@ -127,7 +127,8 @@ router.post('/verify-email', async (req: Request, res: Response) => {
 
 // Login endpoint
 router.post('/login', async (req: Request, res: Response) => {
-  const { email, password, remember } = req.body;
+  const { email, password, remember, remember_me } = req.body;
+  const rememberMe = remember || remember_me;
   const ip = (req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress) as string;
 
   if (!email || !password) {
@@ -157,7 +158,7 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     if (!user.verified && !user.emailVerifiedAt) {
-      res.status(401).json({ success: false, error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email address before logging in' });
+      res.status(403).json({ success: false, error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email before logging in. Resend verification?' });
       return;
     }
 
@@ -175,7 +176,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // create session and refresh token
     const sessionId = uuidv4();
     const now = Date.now();
-    const refreshDays = remember ? 90 : 30;
+    const refreshDays = rememberMe ? 90 : 30;
     const expiresAt = new Date(now + refreshDays * 24 * 60 * 60 * 1000);
     await (await import('../models/index.js')).Session.create({ 
       id: sessionId, 
