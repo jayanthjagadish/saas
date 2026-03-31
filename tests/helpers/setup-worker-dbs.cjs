@@ -74,10 +74,15 @@ async function provisionWorkerDb(workerIndex) {
 
     await conn.execute('SET FOREIGN_KEY_CHECKS = 0');
 
+    // Drop all tables first (separate pass avoids FK ordering issues)
     for (const table of tables) {
       await conn.execute(`DROP TABLE IF EXISTS \`${dbName}\`.\`${table}\``);
+    }
+
+    // Then create all tables from source schema
+    for (const table of tables) {
       await conn.execute(
-        `CREATE TABLE \`${dbName}\`.\`${table}\` LIKE \`${SOURCE_DB}\`.\`${table}\``
+        `CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`${table}\` LIKE \`${SOURCE_DB}\`.\`${table}\``
       );
     }
 
@@ -93,7 +98,7 @@ async function provisionWorkerDb(workerIndex) {
       ['test@fenster-test.com', hash, hash]
     );
 
-    // Seed plans from source DB
+    // Seed plans from source DB (upsert to handle re-runs gracefully)
     const [plans] = await conn.execute(`SELECT * FROM \`${SOURCE_DB}\`.plans`);
     if (plans.length > 0) {
       for (const plan of plans) {
@@ -101,7 +106,8 @@ async function provisionWorkerDb(workerIndex) {
           `INSERT INTO \`${dbName}\`.plans 
            (id, name, tier, price_monthly, price_annual, max_members, features, 
             stripe_price_id_monthly, stripe_price_id_annual, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE name = VALUES(name), tier = VALUES(tier), updatedAt = NOW()`,
           [
             plan.id, 
             plan.name, 
